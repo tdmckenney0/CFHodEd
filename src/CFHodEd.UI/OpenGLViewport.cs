@@ -340,18 +340,19 @@ public class OpenGLViewport : Control
     {
         if (_model == null) return;
 
-        uint meshColorBgra = (uint)(_meshColor.A << 24 | _meshColor.R << 16 | _meshColor.G << 8 | _meshColor.B);
+        // Light direction (from camera)
+        var lightDir = Vector3.Normalize(_cameraPosition - _cameraTarget);
+        
+        // Collect triangles for depth sorting (for solid mode)
+        var triangles = new List<(float depth, int i0, int i1, int i2, MeshLOD lod)>();
 
         foreach (var mesh in _model.Meshes)
         {
-            // Use first LOD for drawing
             if (mesh.LODs.Count == 0) continue;
             var lod = mesh.LODs[0];
-
             var vertices = lod.Vertices;
             var indices = lod.Indices;
 
-            // Draw triangles as wireframe
             for (int i = 0; i + 2 < indices.Count; i += 3)
             {
                 int i0 = indices[i];
@@ -365,16 +366,104 @@ public class OpenGLViewport : Control
                 var v1 = vertices[i1].Position;
                 var v2 = vertices[i2].Position;
 
-                var p0 = ProjectPoint(new Vector3(v0.X, v0.Y, v0.Z), width, height);
-                var p1 = ProjectPoint(new Vector3(v1.X, v1.Y, v1.Z), width, height);
-                var p2 = ProjectPoint(new Vector3(v2.X, v2.Y, v2.Z), width, height);
+                // Calculate depth for sorting (average Z in view space)
+                var viewMatrix = ViewMatrix;
+                var tv0 = Vector3.TransformCoordinate(new Vector3(v0.X, v0.Y, v0.Z), viewMatrix);
+                var tv1 = Vector3.TransformCoordinate(new Vector3(v1.X, v1.Y, v1.Z), viewMatrix);
+                var tv2 = Vector3.TransformCoordinate(new Vector3(v2.X, v2.Y, v2.Z), viewMatrix);
+                float avgDepth = (tv0.Z + tv1.Z + tv2.Z) / 3f;
 
-                if (p0.HasValue && p1.HasValue)
-                    DrawLine(ptr, width, height, stride, p0.Value, p1.Value, meshColorBgra);
-                if (p1.HasValue && p2.HasValue)
-                    DrawLine(ptr, width, height, stride, p1.Value, p2.Value, meshColorBgra);
-                if (p2.HasValue && p0.HasValue)
-                    DrawLine(ptr, width, height, stride, p2.Value, p0.Value, meshColorBgra);
+                triangles.Add((avgDepth, i0, i1, i2, lod));
+            }
+        }
+
+        // Sort back-to-front for painter's algorithm
+        triangles.Sort((a, b) => b.depth.CompareTo(a.depth));
+
+        foreach (var (depth, i0, i1, i2, lod) in triangles)
+        {
+            var vertices = lod.Vertices;
+            var v0 = vertices[i0].Position;
+            var v1 = vertices[i1].Position;
+            var v2 = vertices[i2].Position;
+
+            var p0Pos = new Vector3(v0.X, v0.Y, v0.Z);
+            var p1Pos = new Vector3(v1.X, v1.Y, v1.Z);
+            var p2Pos = new Vector3(v2.X, v2.Y, v2.Z);
+
+            // Calculate face normal for backface culling and lighting
+            var edge1 = p1Pos - p0Pos;
+            var edge2 = p2Pos - p0Pos;
+            var faceNormal = Vector3.Normalize(Vector3.Cross(edge1, edge2));
+            
+            // Backface culling - skip if facing away from camera
+            var toCamera = Vector3.Normalize(_cameraPosition - (p0Pos + p1Pos + p2Pos) / 3f);
+            float dotCamera = Vector3.Dot(faceNormal, toCamera);
+            if (dotCamera < 0 && _renderMode == RenderMode.Solid) continue;
+
+            var p0 = ProjectPoint(p0Pos, width, height);
+            var p1 = ProjectPoint(p1Pos, width, height);
+            var p2 = ProjectPoint(p2Pos, width, height);
+
+            if (!p0.HasValue || !p1.HasValue || !p2.HasValue) continue;
+
+            if (_renderMode == RenderMode.Solid)
+            {
+                // Flat shading: calculate diffuse lighting
+                float diffuse = System.Math.Max(0.2f, Vector3.Dot(faceNormal, lightDir));
+                byte r = (byte)(_meshColor.R * diffuse);
+                byte g = (byte)(_meshColor.G * diffuse);
+                byte b = (byte)(_meshColor.B * diffuse);
+                uint color = (uint)(255 << 24 | r << 16 | g << 8 | b);
+
+                DrawFilledTriangle(ptr, width, height, stride, p0.Value, p1.Value, p2.Value, color);
+            }
+            else
+            {
+                // Wireframe mode
+                uint meshColorBgra = (uint)(_meshColor.A << 24 | _meshColor.R << 16 | _meshColor.G << 8 | _meshColor.B);
+                DrawLine(ptr, width, height, stride, p0.Value, p1.Value, meshColorBgra);
+                DrawLine(ptr, width, height, stride, p1.Value, p2.Value, meshColorBgra);
+                DrawLine(ptr, width, height, stride, p2.Value, p0.Value, meshColorBgra);
+            }
+        }
+    }
+
+    private unsafe void DrawFilledTriangle(uint* ptr, int width, int height, int stride, 
+                                            (int x, int y) p0, (int x, int y) p1, (int x, int y) p2, uint color)
+    {
+        // Sort vertices by Y coordinate
+        if (p0.y > p1.y) (p0, p1) = (p1, p0);
+        if (p1.y > p2.y) (p1, p2) = (p2, p1);
+        if (p0.y > p1.y) (p0, p1) = (p1, p0);
+
+        int y0 = p0.y, y1 = p1.y, y2 = p2.y;
+        double x0 = p0.x, x1 = p1.x, x2 = p2.x;
+
+        // Scanline fill
+        for (int y = System.Math.Max(0, y0); y <= System.Math.Min(height - 1, y2); y++)
+        {
+            double xa, xb;
+            if (y < y1)
+            {
+                // Upper half
+                if (y1 == y0) xa = x0; else xa = x0 + (x1 - x0) * (y - y0) / (y1 - y0);
+                if (y2 == y0) xb = x0; else xb = x0 + (x2 - x0) * (y - y0) / (y2 - y0);
+            }
+            else
+            {
+                // Lower half
+                if (y2 == y1) xa = x1; else xa = x1 + (x2 - x1) * (y - y1) / (y2 - y1);
+                if (y2 == y0) xb = x0; else xb = x0 + (x2 - x0) * (y - y0) / (y2 - y0);
+            }
+
+            if (xa > xb) (xa, xb) = (xb, xa);
+            int startX = System.Math.Max(0, (int)xa);
+            int endX = System.Math.Min(width - 1, (int)xb);
+
+            for (int x = startX; x <= endX; x++)
+            {
+                ptr[y * stride + x] = color;
             }
         }
     }

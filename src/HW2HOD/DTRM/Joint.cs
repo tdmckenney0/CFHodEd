@@ -198,11 +198,10 @@ public sealed class Joint : IJoint
         _axis.Y = iff.ReadSingle();
         _axis.Z = iff.ReadSingle();
 
-        _degreeOfFreedom.X = iff.ReadInt32();
-        _degreeOfFreedom.Y = iff.ReadInt32();
-        _degreeOfFreedom.Z = iff.ReadInt32();
-
-        _visible = iff.ReadInt32() != 0;
+        // VB.NET reads these as bytes, not Int32
+        _degreeOfFreedom.X = iff.ReadByte();
+        _degreeOfFreedom.Y = iff.ReadByte();
+        _degreeOfFreedom.Z = iff.ReadByte();
     }
 
     /// <summary>Writes joint to IFF.</summary>
@@ -227,11 +226,10 @@ public sealed class Joint : IJoint
         iff.Write(_axis.Y);
         iff.Write(_axis.Z);
 
-        iff.WriteInt32((int)_degreeOfFreedom.X);
-        iff.WriteInt32((int)_degreeOfFreedom.Y);
-        iff.WriteInt32((int)_degreeOfFreedom.Z);
-
-        iff.WriteInt32(_visible ? 1 : 0);
+        // VB.NET writes these as bytes
+        iff.Write((byte)(_degreeOfFreedom.X != 0 ? 1 : 0));
+        iff.Write((byte)(_degreeOfFreedom.Y != 0 ? 1 : 0));
+        iff.Write((byte)(_degreeOfFreedom.Z != 0 ? 1 : 0));
     }
 
     /// <summary>Reads HIER chunk from IFF.</summary>

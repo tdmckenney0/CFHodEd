@@ -330,17 +330,8 @@ public sealed class HOD : IHodFile
 
     private void ReadDTRMChunk(IFFReader iff, ChunkAttributes attrs)
     {
-        // DTRM parsing is incomplete - wrap in try-catch to avoid crashing
-        iff.AddHandler("HIER", ChunkType.Default, (r, a) =>
-        {
-            try { Joint.ReadHIERChunk(r, _root); }
-            catch { /* HIER parsing not yet fully implemented */ }
-        });
-        iff.AddHandler("MARK", ChunkType.Default, (r, a) =>
-        {
-            try { ReadMARKChunk(r, a); }
-            catch { /* MARK parsing not yet fully implemented */ }
-        });
+        iff.AddHandler("HIER", ChunkType.Default, (r, a) => Joint.ReadHIERChunk(r, _root));
+        iff.AddHandler("MARK", ChunkType.Default, ReadMARKChunk);
         iff.AddHandler("ENGN", ChunkType.Form, ReadENGNChunk);
         iff.AddHandler("NAVL", ChunkType.Default, ReadNAVLChunk);
         iff.Parse();
