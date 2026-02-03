@@ -175,6 +175,7 @@ public sealed class MeshLOD
 public sealed class Mesh
 {
     private string _name = "Mesh";
+    private string _parentJoint = "Root";
     private readonly EventList<MeshLOD> _lods = new();
 
     public Mesh() { }
@@ -182,6 +183,7 @@ public sealed class Mesh
     public Mesh(Mesh m)
     {
         _name = m._name;
+        _parentJoint = m._parentJoint;
         foreach (var lod in m._lods)
             _lods.Add(new MeshLOD(lod));
     }
@@ -190,6 +192,12 @@ public sealed class Mesh
     {
         get => _name;
         set => _name = value ?? "";
+    }
+
+    public string ParentJoint
+    {
+        get => _parentJoint;
+        set => _parentJoint = value ?? "";
     }
 
     public IList<MeshLOD> LODs => _lods;

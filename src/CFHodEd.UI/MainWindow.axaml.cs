@@ -1,40 +1,26 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using CFHodEd.UI.ViewModels;
 using HW2HOD;
 
 namespace CFHodEd.UI;
 
 public partial class MainWindow : Window
 {
-    private HOD? _currentHod;
-    private string? _currentFilePath;
+    private readonly MainWindowViewModel _viewModel = new();
 
     public MainWindow()
     {
         InitializeComponent();
-        UpdateTitle();
-    }
-
-    private void UpdateTitle()
-    {
-        string fileName = _currentFilePath != null ? System.IO.Path.GetFileName(_currentFilePath) : "Untitled";
-        Title = $"CFHodEd - {fileName}";
-    }
-
-    private void SetStatus(string message)
-    {
-        StatusText.Text = message;
+        DataContext = _viewModel;
     }
 
     private void NewFile_Click(object? sender, RoutedEventArgs e)
     {
-        _currentHod = new HOD();
-        _currentHod.Initialize();
-        _currentFilePath = null;
-        UpdateTitle();
-        RefreshHierarchy();
-        SetStatus("New file created");
+        _viewModel.NewFile();
+        Viewport.ResetCamera();
     }
 
     private async void OpenFile_Click(object? sender, RoutedEventArgs e)
@@ -57,29 +43,29 @@ public partial class MainWindow : Window
             try
             {
                 await using var stream = await file.OpenReadAsync();
-                _currentHod = new HOD();
-                _currentHod.Read(stream);
-                _currentFilePath = file.Path.LocalPath;
-                UpdateTitle();
-                RefreshHierarchy();
-                SetStatus($"Loaded: {System.IO.Path.GetFileName(_currentFilePath)}");
+                var hod = new HOD();
+                hod.Read(stream);
+                _viewModel.CurrentHod = hod;
+                _viewModel.CurrentFilePath = file.Path.LocalPath;
+                _viewModel.StatusText = $"Loaded: {System.IO.Path.GetFileName(file.Path.LocalPath)}";
+                Viewport.Model = hod;
             }
             catch (Exception ex)
             {
-                SetStatus($"Error: {ex.Message}");
+                _viewModel.StatusText = $"Error: {ex.Message}";
             }
         }
     }
 
     private async void SaveFile_Click(object? sender, RoutedEventArgs e)
     {
-        if (_currentHod == null)
+        if (_viewModel.CurrentHod == null)
         {
-            SetStatus("Nothing to save");
+            _viewModel.StatusText = "Nothing to save";
             return;
         }
 
-        if (_currentFilePath == null)
+        if (_viewModel.CurrentFilePath == null)
         {
             SaveFileAs_Click(sender, e);
             return;
@@ -87,21 +73,21 @@ public partial class MainWindow : Window
 
         try
         {
-            await using var stream = System.IO.File.Create(_currentFilePath);
-            _currentHod.Write(stream);
-            SetStatus($"Saved: {System.IO.Path.GetFileName(_currentFilePath)}");
+            await using var stream = System.IO.File.Create(_viewModel.CurrentFilePath);
+            _viewModel.CurrentHod.Write(stream);
+            _viewModel.StatusText = $"Saved: {System.IO.Path.GetFileName(_viewModel.CurrentFilePath)}";
         }
         catch (Exception ex)
         {
-            SetStatus($"Error: {ex.Message}");
+            _viewModel.StatusText = $"Error: {ex.Message}";
         }
     }
 
     private async void SaveFileAs_Click(object? sender, RoutedEventArgs e)
     {
-        if (_currentHod == null)
+        if (_viewModel.CurrentHod == null)
         {
-            SetStatus("Nothing to save");
+            _viewModel.StatusText = "Nothing to save";
             return;
         }
 
@@ -121,26 +107,25 @@ public partial class MainWindow : Window
             try
             {
                 await using var stream = await result.OpenWriteAsync();
-                _currentHod.Write(stream);
-                _currentFilePath = result.Path.LocalPath;
-                UpdateTitle();
-                SetStatus($"Saved: {System.IO.Path.GetFileName(_currentFilePath)}");
+                _viewModel.CurrentHod.Write(stream);
+                _viewModel.CurrentFilePath = result.Path.LocalPath;
+                _viewModel.StatusText = $"Saved: {System.IO.Path.GetFileName(result.Path.LocalPath)}";
             }
             catch (Exception ex)
             {
-                SetStatus($"Error: {ex.Message}");
+                _viewModel.StatusText = $"Error: {ex.Message}";
             }
         }
     }
 
     private void ImportOBJ_Click(object? sender, RoutedEventArgs e)
     {
-        SetStatus("OBJ import not yet implemented");
+        _viewModel.StatusText = "OBJ import not yet implemented";
     }
 
     private void ExportOBJ_Click(object? sender, RoutedEventArgs e)
     {
-        SetStatus("OBJ export not yet implemented");
+        _viewModel.StatusText = "OBJ export not yet implemented";
     }
 
     private void Exit_Click(object? sender, RoutedEventArgs e)
@@ -151,91 +136,46 @@ public partial class MainWindow : Window
     private void ResetCamera_Click(object? sender, RoutedEventArgs e)
     {
         Viewport.ResetCamera();
-        SetStatus("Camera reset");
+        _viewModel.StatusText = "Camera reset";
     }
 
     private void WireframeMode_Click(object? sender, RoutedEventArgs e)
     {
         Viewport.Mode = RenderMode.Wireframe;
-        SetStatus("Wireframe mode");
+        _viewModel.StatusText = "Wireframe mode";
     }
 
     private void SolidMode_Click(object? sender, RoutedEventArgs e)
     {
         Viewport.Mode = RenderMode.Solid;
-        SetStatus("Solid mode");
+        _viewModel.StatusText = "Solid mode";
     }
 
     private void TexturedMode_Click(object? sender, RoutedEventArgs e)
     {
         Viewport.Mode = RenderMode.Textured;
-        SetStatus("Textured mode");
+        _viewModel.StatusText = "Textured mode";
     }
 
     private void Settings_Click(object? sender, RoutedEventArgs e)
     {
-        SetStatus("Settings not yet implemented");
+        _viewModel.StatusText = "Settings not yet implemented";
     }
 
     private void About_Click(object? sender, RoutedEventArgs e)
     {
-        SetStatus("CFHodEd - Cross-platform Homeworld 2 Model Editor");
+        _viewModel.StatusText = "CFHodEd - Cross-platform Homeworld 2 Model Editor";
     }
 
-    private void RefreshHierarchy()
+    private void TeamColor_Click(object? sender, PointerPressedEventArgs e)
     {
-        HierarchyTree.Items.Clear();
-
-        if (_currentHod == null)
-        {
-            var item = new TreeViewItem { Header = "Root", IsExpanded = true };
-            item.Items.Add(new TreeViewItem { Header = "(No model loaded)" });
-            HierarchyTree.Items.Add(item);
-            return;
-        }
-
-        // Build joint hierarchy
-        var rootItem = BuildJointTree(_currentHod.Root);
-        HierarchyTree.Items.Add(rootItem);
-
-        // Add meshes
-        if (_currentHod.Meshes.Count > 0)
-        {
-            var meshesItem = new TreeViewItem { Header = $"Meshes ({_currentHod.Meshes.Count})", IsExpanded = true };
-            foreach (var mesh in _currentHod.Meshes)
-            {
-                var meshItem = new TreeViewItem { Header = mesh.Name };
-                foreach (var lod in mesh.LODs)
-                    meshItem.Items.Add(new TreeViewItem { Header = $"LOD: {lod.VertexCount} verts" });
-                meshesItem.Items.Add(meshItem);
-            }
-            HierarchyTree.Items.Add(meshesItem);
-        }
-
-        // Add materials
-        if (_currentHod.Materials.Count > 0)
-        {
-            var materialsItem = new TreeViewItem { Header = $"Materials ({_currentHod.Materials.Count})" };
-            foreach (var mat in _currentHod.Materials)
-                materialsItem.Items.Add(new TreeViewItem { Header = mat.Name });
-            HierarchyTree.Items.Add(materialsItem);
-        }
-
-        // Add markers
-        if (_currentHod.Markers.Count > 0)
-        {
-            var markersItem = new TreeViewItem { Header = $"Markers ({_currentHod.Markers.Count})" };
-            foreach (var marker in _currentHod.Markers)
-                markersItem.Items.Add(new TreeViewItem { Header = marker.Name });
-            HierarchyTree.Items.Add(markersItem);
-        }
+        // Color picker would go here
+        _viewModel.StatusText = "Color picker not yet implemented";
     }
 
-    private TreeViewItem BuildJointTree(Joint joint)
+    private void StripeColor_Click(object? sender, PointerPressedEventArgs e)
     {
-        var item = new TreeViewItem { Header = joint.Name, IsExpanded = true };
-        foreach (var child in joint.Children)
-            item.Items.Add(BuildJointTree(child));
-        return item;
+        // Color picker would go here
+        _viewModel.StatusText = "Color picker not yet implemented";
     }
 }

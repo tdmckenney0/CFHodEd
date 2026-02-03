@@ -5,6 +5,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using HW2HOD;
 using System.Runtime.InteropServices;
 using Matrix = CFHodEd.Math.Matrix;
 using Vector3 = CFHodEd.Math.Vector3;
@@ -38,8 +39,24 @@ public class OpenGLViewport : Control
     private RenderMode _renderMode = RenderMode.Solid;
     private Color _clearColor = Color.FromRgb(30, 30, 35);
     private Color _gridColor = Color.FromRgb(60, 60, 70);
+    private Color _meshColor = Color.FromRgb(100, 180, 255);
+    
+    // Model
+    private HOD? _model;
 
     public event Action? RenderFrame;
+
+    public HOD? Model
+    {
+        get => _model;
+        set
+        {
+            _model = value;
+            if (value != null)
+                FocusOnModel();
+            InvalidateVisual();
+        }
+    }
 
     public RenderMode Mode
     {
@@ -135,6 +152,10 @@ public class OpenGLViewport : Control
 
         // Draw coordinate axes
         DrawAxes(ptr, width, height, stride);
+
+        // Draw model meshes
+        if (_model != null)
+            DrawMeshes(ptr, width, height, stride);
 
         _needsRedraw = false;
     }
@@ -274,6 +295,88 @@ public class OpenGLViewport : Control
         _cameraDistance = bounds.Size.Length() * 1.5f;
         UpdateCameraPosition();
         RequestRedraw();
+    }
+
+    private void FocusOnModel()
+    {
+        if (_model == null || _model.Meshes.Count == 0)
+        {
+            ResetCamera();
+            return;
+        }
+
+        // Calculate bounding box across all meshes
+        var min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+        var max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+
+        foreach (var mesh in _model.Meshes)
+        {
+            foreach (var lod in mesh.LODs)
+            {
+                var bb = lod.Bounds;
+                min = new Vector3(
+                    System.Math.Min(min.X, bb.Min.X),
+                    System.Math.Min(min.Y, bb.Min.Y),
+                    System.Math.Min(min.Z, bb.Min.Z));
+                max = new Vector3(
+                    System.Math.Max(max.X, bb.Max.X),
+                    System.Math.Max(max.Y, bb.Max.Y),
+                    System.Math.Max(max.Z, bb.Max.Z));
+            }
+        }
+
+        if (min.X < float.MaxValue)
+        {
+            var bounds = new BoundingBox(min, max);
+            _cameraTarget = bounds.Center;
+            _cameraDistance = System.Math.Max(2f, bounds.Size.Length() * 1.5f);
+            _cameraYaw = 0.5f;
+            _cameraPitch = 0.4f;
+            UpdateCameraPosition();
+        }
+    }
+
+    private unsafe void DrawMeshes(uint* ptr, int width, int height, int stride)
+    {
+        if (_model == null) return;
+
+        uint meshColorBgra = (uint)(_meshColor.A << 24 | _meshColor.R << 16 | _meshColor.G << 8 | _meshColor.B);
+
+        foreach (var mesh in _model.Meshes)
+        {
+            // Use first LOD for drawing
+            if (mesh.LODs.Count == 0) continue;
+            var lod = mesh.LODs[0];
+
+            var vertices = lod.Vertices;
+            var indices = lod.Indices;
+
+            // Draw triangles as wireframe
+            for (int i = 0; i + 2 < indices.Count; i += 3)
+            {
+                int i0 = indices[i];
+                int i1 = indices[i + 1];
+                int i2 = indices[i + 2];
+
+                if (i0 >= vertices.Count || i1 >= vertices.Count || i2 >= vertices.Count)
+                    continue;
+
+                var v0 = vertices[i0].Position;
+                var v1 = vertices[i1].Position;
+                var v2 = vertices[i2].Position;
+
+                var p0 = ProjectPoint(new Vector3(v0.X, v0.Y, v0.Z), width, height);
+                var p1 = ProjectPoint(new Vector3(v1.X, v1.Y, v1.Z), width, height);
+                var p2 = ProjectPoint(new Vector3(v2.X, v2.Y, v2.Z), width, height);
+
+                if (p0.HasValue && p1.HasValue)
+                    DrawLine(ptr, width, height, stride, p0.Value, p1.Value, meshColorBgra);
+                if (p1.HasValue && p2.HasValue)
+                    DrawLine(ptr, width, height, stride, p1.Value, p2.Value, meshColorBgra);
+                if (p2.HasValue && p0.HasValue)
+                    DrawLine(ptr, width, height, stride, p2.Value, p0.Value, meshColorBgra);
+            }
+        }
     }
 
     private void UpdateCameraPosition()

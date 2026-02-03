@@ -3,9 +3,11 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CFHodEd.UI"
+        xmlns:vm="clr-namespace:CFHodEd.UI.ViewModels"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="720"
         x:Class="CFHodEd.UI.MainWindow"
-        Title="CFHodEd - Homeworld 2 Model Editor"
+        x:DataType="vm:MainWindowViewModel"
+        Title="{Binding WindowTitle}"
         Width="1280" Height="720"
         WindowStartupLocation="CenterScreen">
     
@@ -40,9 +42,9 @@
             <MenuItem Header="_View">
                 <MenuItem Header="Reset Camera" Click="ResetCamera_Click"/>
                 <Separator/>
-                <MenuItem Header="Wireframe Mode" x:Name="WireframeModeItem" Click="WireframeMode_Click"/>
-                <MenuItem Header="Solid Mode" x:Name="SolidModeItem" Click="SolidMode_Click"/>
-                <MenuItem Header="Textured Mode" x:Name="TexturedModeItem" Click="TexturedMode_Click"/>
+                <MenuItem Header="Wireframe Mode" Click="WireframeMode_Click"/>
+                <MenuItem Header="Solid Mode" Click="SolidMode_Click"/>
+                <MenuItem Header="Textured Mode" Click="TexturedMode_Click"/>
             </MenuItem>
             <MenuItem Header="_Tools">
                 <MenuItem Header="_Settings..." Click="Settings_Click"/>
@@ -67,7 +69,7 @@
         
         <!-- Status Bar -->
         <Border DockPanel.Dock="Bottom" Background="#007ACC" Height="24">
-            <TextBlock x:Name="StatusText" Text="Ready" Foreground="White" 
+            <TextBlock Text="{Binding StatusText}" Foreground="White" 
                        VerticalAlignment="Center" Margin="8,0"/>
         </Border>
         
@@ -86,10 +88,14 @@
                 <DockPanel>
                     <TextBlock DockPanel.Dock="Top" Text="Hierarchy" FontWeight="SemiBold" 
                                Background="#3C3C3C" Padding="8,4" Foreground="#CCCCCC"/>
-                    <TreeView x:Name="HierarchyTree" Background="#252526">
-                        <TreeViewItem Header="Root" IsExpanded="True">
-                            <TreeViewItem Header="(No model loaded)"/>
-                        </TreeViewItem>
+                    <TreeView x:Name="HierarchyTree" Background="#252526"
+                              ItemsSource="{Binding HierarchyItems}"
+                              SelectedItem="{Binding SelectedItem, Mode=TwoWay}">
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate ItemsSource="{Binding Children}">
+                                <TextBlock Text="{Binding Name}"/>
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
                     </TreeView>
                 </DockPanel>
             </Border>
@@ -120,35 +126,53 @@
                                     <TextBlock Text="Position" Foreground="#999"/>
                                     <Grid Margin="0,4,0,8">
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox Grid.Column="0" Text="0" Margin="0,0,2,0"/>
-                                        <TextBox Grid.Column="1" Text="0" Margin="2,0,2,0"/>
-                                        <TextBox Grid.Column="2" Text="0" Margin="2,0,0,0"/>
+                                        <TextBlock Grid.Column="0" Text="X" Foreground="#F44" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" Text="{Binding PositionX, StringFormat={}{0:F3}}" Margin="0,0,4,0"/>
+                                        <TextBlock Grid.Column="2" Text="Y" Foreground="#4F4" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="3" Text="{Binding PositionY, StringFormat={}{0:F3}}" Margin="0,0,4,0"/>
+                                        <TextBlock Grid.Column="4" Text="Z" Foreground="#44F" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="5" Text="{Binding PositionZ, StringFormat={}{0:F3}}"/>
                                     </Grid>
                                     <TextBlock Text="Rotation" Foreground="#999"/>
                                     <Grid Margin="0,4,0,8">
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox Grid.Column="0" Text="0" Margin="0,0,2,0"/>
-                                        <TextBox Grid.Column="1" Text="0" Margin="2,0,2,0"/>
-                                        <TextBox Grid.Column="2" Text="0" Margin="2,0,0,0"/>
+                                        <TextBlock Grid.Column="0" Text="X" Foreground="#F44" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" Text="{Binding RotationX, StringFormat={}{0:F3}}" Margin="0,0,4,0"/>
+                                        <TextBlock Grid.Column="2" Text="Y" Foreground="#4F4" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="3" Text="{Binding RotationY, StringFormat={}{0:F3}}" Margin="0,0,4,0"/>
+                                        <TextBlock Grid.Column="4" Text="Z" Foreground="#44F" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="5" Text="{Binding RotationZ, StringFormat={}{0:F3}}"/>
                                     </Grid>
                                     <TextBlock Text="Scale" Foreground="#999"/>
                                     <Grid Margin="0,4,0,0">
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox Grid.Column="0" Text="1" Margin="0,0,2,0"/>
-                                        <TextBox Grid.Column="1" Text="1" Margin="2,0,2,0"/>
-                                        <TextBox Grid.Column="2" Text="1" Margin="2,0,0,0"/>
+                                        <TextBlock Grid.Column="0" Text="X" Foreground="#F44" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" Text="{Binding ScaleX, StringFormat={}{0:F3}}" Margin="0,0,4,0"/>
+                                        <TextBlock Grid.Column="2" Text="Y" Foreground="#4F4" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="3" Text="{Binding ScaleY, StringFormat={}{0:F3}}" Margin="0,0,4,0"/>
+                                        <TextBlock Grid.Column="4" Text="Z" Foreground="#44F" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="5" Text="{Binding ScaleZ, StringFormat={}{0:F3}}"/>
                                     </Grid>
                                 </StackPanel>
                             </Expander>
@@ -157,7 +181,7 @@
                             <Expander Header="Material" IsExpanded="True" Margin="0,0,0,8">
                                 <StackPanel Margin="8">
                                     <TextBlock Text="Shader" Foreground="#999"/>
-                                    <ComboBox Margin="0,4,0,8" SelectedIndex="0">
+                                    <ComboBox Margin="0,4,0,8" SelectedItem="{Binding ShaderName}">
                                         <ComboBoxItem Content="ship"/>
                                         <ComboBoxItem Content="matte"/>
                                         <ComboBoxItem Content="thruster"/>
@@ -169,7 +193,25 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox Grid.Column="0" Text="" IsReadOnly="True"/>
+                                        <TextBox Grid.Column="0" Text="{Binding DiffuseTexture}" IsReadOnly="True"/>
+                                        <Button Grid.Column="1" Content="..." Width="30" Margin="4,0,0,0"/>
+                                    </Grid>
+                                    <TextBlock Text="Glow Texture" Foreground="#999"/>
+                                    <Grid Margin="0,4,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="{Binding GlowTexture}" IsReadOnly="True"/>
+                                        <Button Grid.Column="1" Content="..." Width="30" Margin="4,0,0,0"/>
+                                    </Grid>
+                                    <TextBlock Text="Normal Texture" Foreground="#999"/>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="{Binding NormalTexture}" IsReadOnly="True"/>
                                         <Button Grid.Column="1" Content="..." Width="30" Margin="4,0,0,0"/>
                                     </Grid>
                                 </StackPanel>
@@ -179,11 +221,13 @@
                             <Expander Header="Team Colors" IsExpanded="True">
                                 <StackPanel Margin="8">
                                     <TextBlock Text="Team Color" Foreground="#999"/>
-                                    <Border Height="24" Background="#808080" 
-                                            CornerRadius="3" Margin="0,4,0,8" Cursor="Hand"/>
+                                    <Border Height="24" CornerRadius="3" Margin="0,4,0,8" Cursor="Hand"
+                                            Background="{Binding TeamColor, Converter={x:Static local:ColorToBrushConverter.Instance}}"
+                                            PointerPressed="TeamColor_Click"/>
                                     <TextBlock Text="Stripe Color" Foreground="#999"/>
-                                    <Border Height="24" Background="#808080" 
-                                            CornerRadius="3" Margin="0,4,0,0" Cursor="Hand"/>
+                                    <Border Height="24" CornerRadius="3" Margin="0,4,0,0" Cursor="Hand"
+                                            Background="{Binding StripeColor, Converter={x:Static local:ColorToBrushConverter.Instance}}"
+                                            PointerPressed="StripeColor_Click"/>
                                 </StackPanel>
                             </Expander>
                         </StackPanel>

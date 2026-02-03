@@ -118,7 +118,12 @@ public sealed class HOD : IHodFile
         Initialize();
 
         var iff = new IFFReader(stream);
-        iff.AddHandler("FORM", ChunkType.Form, ReadFormChunk);
+        // Register handlers for the top-level FORM chunks (ID is "VERS", "HVMD", etc.)
+        iff.AddHandler("VERS", ChunkType.Form, ReadVERSChunk);
+        iff.AddHandler("NAME", ChunkType.Form, ReadNAMEChunk);
+        iff.AddHandler("HVMD", ChunkType.Form, ReadHVMDChunk);
+        iff.AddHandler("DTRM", ChunkType.Form, ReadDTRMChunk);
+        iff.AddHandler("INFO", ChunkType.Form, ReadINFOChunk);
         iff.Parse();
     }
 
@@ -177,14 +182,165 @@ public sealed class HOD : IHodFile
 
     private void ReadHVMDChunk(IFFReader iff, ChunkAttributes attrs)
     {
-        // HVMD reading - simplified for now
+        // Add handlers for HVMD sub-chunks
+        // VB.NET uses ChunkType.Normal with specific versions
+        iff.AddHandler("STAT", ChunkType.Normal, ReadSTATChunk, 1001);
+        iff.AddHandler("STAT", ChunkType.Default, ReadSTATChunk);  // Old format
+        iff.AddHandler("MULT", ChunkType.Normal, ReadMULTChunk, 1400);
+        // Skip other chunk types for now - they'll be ignored by the parser
         iff.Parse();
+    }
+
+    private void ReadSTATChunk(IFFReader iff, ChunkAttributes attrs)
+    {
+        var material = new Material();
+        material.ReadIFF(iff, (int)attrs.Version);
+        _materials.Add(material);
+    }
+
+    // Current mesh being read (for nested BMSH chunks)
+    private Mesh? _currentMesh;
+    private int _expectedLodCount;
+
+    private void ReadMULTChunk(IFFReader iff, ChunkAttributes attrs)
+    {
+        // Create a new mesh
+        var mesh = new Mesh();
+        
+        // Read name
+        mesh.Name = iff.ReadString();
+        
+        // Read parent name
+        mesh.ParentJoint = iff.ReadString();
+        
+        // Read LOD count
+        _expectedLodCount = iff.ReadInt32();
+        
+        // Store current mesh for BMSH handler
+        _currentMesh = mesh;
+        
+        // Add handlers for BMSH chunks (VB.NET uses versions 1400 and 1401)
+        iff.AddHandler("BMSH", ChunkType.Normal, ReadBMSHChunk, 1400);
+        iff.AddHandler("BMSH", ChunkType.Normal, ReadBMSHChunk, 1401);
+        // TAGS will be ignored by parser
+        
+        // Parse nested chunks
+        iff.Parse();
+        
+        // Add mesh to list if it has data
+        if (mesh.LODs.Count > 0)
+            _meshes.Add(mesh);
+            
+        _currentMesh = null;
+    }
+
+    private void ReadBMSHChunk(IFFReader iff, ChunkAttributes attrs)
+    {
+        if (_currentMesh == null) return;
+        
+        var lod = new MeshLOD();
+        
+        // Read LOD index
+        int lodIndex = iff.ReadInt32();
+        
+        // Read part count
+        int partCount = iff.ReadInt32();
+        
+        // Read all parts
+        for (int p = 0; p < partCount; p++)
+        {
+            // Read material index
+            int materialIndex = iff.ReadInt32();
+            lod.MaterialIndex = materialIndex;
+            
+            // Read vertex mask (determines which vertex components are present)
+            int vertexMask = iff.ReadInt32();
+            
+            // Read vertex count
+            int vertexCount = iff.ReadInt32();
+            
+            // Determine vertex format from mask
+            bool hasPosition = (vertexMask & 0x01) != 0;     // Position
+            bool hasNormal = (vertexMask & 0x02) != 0;       // Normal
+            bool hasTangent = (vertexMask & 0x04) != 0;      // Tangent
+            bool hasBinormal = (vertexMask & 0x08) != 0;     // Binormal
+            bool hasColor = (vertexMask & 0x10) != 0;        // Color
+            bool hasTexCoord0 = (vertexMask & 0x20) != 0;    // TexCoord0
+            bool hasTexCoord1 = (vertexMask & 0x40) != 0;    // TexCoord1
+            
+            // Read vertices
+            for (int v = 0; v < vertexCount; v++)
+            {
+                var vertex = new HODVertex();
+                
+                if (hasPosition)
+                    vertex.Position = new Vector3(iff.ReadSingle(), iff.ReadSingle(), iff.ReadSingle());
+                if (hasNormal)
+                    vertex.Normal = new Vector3(iff.ReadSingle(), iff.ReadSingle(), iff.ReadSingle());
+                if (hasTangent)
+                    vertex.Tangent = new Vector3(iff.ReadSingle(), iff.ReadSingle(), iff.ReadSingle());
+                if (hasBinormal)
+                {
+                    // Skip binormal (3 floats)
+                    iff.ReadSingle(); iff.ReadSingle(); iff.ReadSingle();
+                }
+                if (hasColor)
+                    iff.ReadInt32(); // Skip color
+                if (hasTexCoord0)
+                    vertex.TexCoords = new Vector2(iff.ReadSingle(), iff.ReadSingle());
+                if (hasTexCoord1)
+                {
+                    // Skip second UV (2 floats)
+                    iff.ReadSingle(); iff.ReadSingle();
+                }
+                    
+                lod.Vertices.Add(vertex);
+            }
+            
+            // Read primitive group count
+            short primGroupCount = iff.ReadInt16();
+            
+            // Read all primitive groups
+            for (int g = 0; g < primGroupCount; g++)
+            {
+                // Read primitive type
+                int primType = iff.ReadInt32();
+                
+                // Read index count
+                int indexCount = iff.ReadInt32();
+                
+                // Read indices
+                for (int i = 0; i < indexCount; i++)
+                {
+                    lod.Indices.Add(iff.ReadUInt16());
+                }
+            }
+        }
+        
+        // Calculate bounds
+        lod.RecalculateBounds();
+        
+        // Set LOD name based on parent mesh
+        lod.Name = $"{_currentMesh.Name}_LOD{lodIndex}";
+        lod.ParentJoint = _currentMesh.ParentJoint;
+        
+        // Add to current mesh
+        _currentMesh.LODs.Add(lod);
     }
 
     private void ReadDTRMChunk(IFFReader iff, ChunkAttributes attrs)
     {
-        iff.AddHandler("HIER", ChunkType.Default, (r, a) => Joint.ReadHIERChunk(r, _root));
-        iff.AddHandler("MARK", ChunkType.Default, ReadMARKChunk);
+        // DTRM parsing is incomplete - wrap in try-catch to avoid crashing
+        iff.AddHandler("HIER", ChunkType.Default, (r, a) =>
+        {
+            try { Joint.ReadHIERChunk(r, _root); }
+            catch { /* HIER parsing not yet fully implemented */ }
+        });
+        iff.AddHandler("MARK", ChunkType.Default, (r, a) =>
+        {
+            try { ReadMARKChunk(r, a); }
+            catch { /* MARK parsing not yet fully implemented */ }
+        });
         iff.AddHandler("ENGN", ChunkType.Form, ReadENGNChunk);
         iff.AddHandler("NAVL", ChunkType.Default, ReadNAVLChunk);
         iff.Parse();

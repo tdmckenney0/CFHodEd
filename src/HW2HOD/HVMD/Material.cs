@@ -114,16 +114,32 @@ public sealed class Material
 
     internal void ReadIFF(IFFReader iff, int version)
     {
+        // Read material name
         _name = iff.ReadString();
+        
+        // Read shader name
         _shaderName = iff.ReadString();
-
-        // Read texture parameters based on shader
-        ReadTextureParam(iff, ref _shaderParams.Diffuse);
-        ReadTextureParam(iff, ref _shaderParams.Glow);
-        ReadTextureParam(iff, ref _shaderParams.Specular);
-        ReadTextureParam(iff, ref _shaderParams.Reflection);
-        ReadTextureParam(iff, ref _shaderParams.Normal);
-        ReadTextureParam(iff, ref _shaderParams.Team);
+        
+        // Read parameter count
+        int paramCount = iff.ReadInt32();
+        
+        // Read parameters using VB.NET format: type, dataLength, data, name
+        for (int i = 0; i < paramCount; i++)
+        {
+            // Parameter type (int32)
+            int paramType = iff.ReadInt32();
+            
+            // Data length (int32)
+            int dataLength = iff.ReadInt32();
+            
+            // Skip the data bytes
+            for (int b = 0; b < dataLength; b++)
+                iff.ReadByte();
+            
+            // Name comes AFTER data (only in versioned chunks, version 1001+)
+            if (version > 0)
+                iff.ReadString();
+        }
     }
 
     internal void WriteIFF(IFFWriter iff, int version)
