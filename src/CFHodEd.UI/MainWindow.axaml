@@ -1,0 +1,198 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="720"
+        x:Class="CFHodEd.UI.MainWindow"
+        Title="CFHodEd - Homeworld 2 Model Editor"
+        Width="1280" Height="720"
+        WindowStartupLocation="CenterScreen">
+    
+    <DockPanel>
+        <!-- Menu Bar -->
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_File">
+                <MenuItem Header="_New" InputGesture="Ctrl+N" Click="NewFile_Click"/>
+                <MenuItem Header="_Open..." InputGesture="Ctrl+O" Click="OpenFile_Click"/>
+                <Separator/>
+                <MenuItem Header="_Save" InputGesture="Ctrl+S" Click="SaveFile_Click"/>
+                <MenuItem Header="Save _As..." InputGesture="Ctrl+Shift+S" Click="SaveFileAs_Click"/>
+                <Separator/>
+                <MenuItem Header="_Import">
+                    <MenuItem Header="OBJ Mesh..." Click="ImportOBJ_Click"/>
+                </MenuItem>
+                <MenuItem Header="_Export">
+                    <MenuItem Header="OBJ Mesh..." Click="ExportOBJ_Click"/>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="E_xit" InputGesture="Alt+F4" Click="Exit_Click"/>
+            </MenuItem>
+            <MenuItem Header="_Edit">
+                <MenuItem Header="_Undo" InputGesture="Ctrl+Z"/>
+                <MenuItem Header="_Redo" InputGesture="Ctrl+Y"/>
+                <Separator/>
+                <MenuItem Header="Cu_t" InputGesture="Ctrl+X"/>
+                <MenuItem Header="_Copy" InputGesture="Ctrl+C"/>
+                <MenuItem Header="_Paste" InputGesture="Ctrl+V"/>
+                <MenuItem Header="_Delete" InputGesture="Delete"/>
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="Reset Camera" Click="ResetCamera_Click"/>
+                <Separator/>
+                <MenuItem Header="Wireframe Mode" x:Name="WireframeModeItem" Click="WireframeMode_Click"/>
+                <MenuItem Header="Solid Mode" x:Name="SolidModeItem" Click="SolidMode_Click"/>
+                <MenuItem Header="Textured Mode" x:Name="TexturedModeItem" Click="TexturedMode_Click"/>
+            </MenuItem>
+            <MenuItem Header="_Tools">
+                <MenuItem Header="_Settings..." Click="Settings_Click"/>
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="_About CFHodEd" Click="About_Click"/>
+            </MenuItem>
+        </Menu>
+        
+        <!-- Toolbar -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Background="#2D2D30" Height="32">
+            <Button Margin="4,2" Content="📁" ToolTip.Tip="Open" Click="OpenFile_Click"/>
+            <Button Margin="4,2" Content="💾" ToolTip.Tip="Save" Click="SaveFile_Click"/>
+            <Separator Width="1" Background="#3F3F46" Margin="8,4"/>
+            <Button Margin="4,2" Content="↩" ToolTip.Tip="Undo"/>
+            <Button Margin="4,2" Content="↪" ToolTip.Tip="Redo"/>
+            <Separator Width="1" Background="#3F3F46" Margin="8,4"/>
+            <Button Margin="4,2" Content="🔲" ToolTip.Tip="Wireframe" Click="WireframeMode_Click"/>
+            <Button Margin="4,2" Content="⬛" ToolTip.Tip="Solid" Click="SolidMode_Click"/>
+            <Button Margin="4,2" Content="🎨" ToolTip.Tip="Textured" Click="TexturedMode_Click"/>
+        </StackPanel>
+        
+        <!-- Status Bar -->
+        <Border DockPanel.Dock="Bottom" Background="#007ACC" Height="24">
+            <TextBlock x:Name="StatusText" Text="Ready" Foreground="White" 
+                       VerticalAlignment="Center" Margin="8,0"/>
+        </Border>
+        
+        <!-- Main Content -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250" MinWidth="150"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="280" MinWidth="200"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Left Panel: Hierarchy -->
+            <Border Grid.Column="0" Background="#252526" BorderBrush="#3F3F46" BorderThickness="0,0,1,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Hierarchy" FontWeight="SemiBold" 
+                               Background="#3C3C3C" Padding="8,4" Foreground="#CCCCCC"/>
+                    <TreeView x:Name="HierarchyTree" Background="#252526">
+                        <TreeViewItem Header="Root" IsExpanded="True">
+                            <TreeViewItem Header="(No model loaded)"/>
+                        </TreeViewItem>
+                    </TreeView>
+                </DockPanel>
+            </Border>
+            
+            <!-- Splitter -->
+            <GridSplitter Grid.Column="1" Width="5" Background="#3F3F46" 
+                          ResizeDirection="Columns" HorizontalAlignment="Stretch"/>
+            
+            <!-- Center: 3D Viewport -->
+            <Border Grid.Column="2" Background="#1E1E1E" x:Name="ViewportBorder">
+                <Grid>
+                    <TextBlock Text="3D Viewport" HorizontalAlignment="Center" 
+                               VerticalAlignment="Center" Foreground="#666666" FontSize="18"/>
+                    <!-- OpenGL control will be added here programmatically -->
+                </Grid>
+            </Border>
+            
+            <!-- Splitter -->
+            <GridSplitter Grid.Column="3" Width="5" Background="#3F3F46" 
+                          ResizeDirection="Columns" HorizontalAlignment="Stretch"/>
+            
+            <!-- Right Panel: Properties -->
+            <Border Grid.Column="4" Background="#252526" BorderBrush="#3F3F46" BorderThickness="1,0,0,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Properties" FontWeight="SemiBold" 
+                               Background="#3C3C3C" Padding="8,4" Foreground="#CCCCCC"/>
+                    <ScrollViewer>
+                        <StackPanel Margin="8">
+                            <!-- Transform Section -->
+                            <Expander Header="Transform" IsExpanded="True" Margin="0,0,0,8">
+                                <StackPanel Margin="8">
+                                    <TextBlock Text="Position" Foreground="#999"/>
+                                    <Grid Margin="0,4,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="0" Margin="0,0,2,0"/>
+                                        <TextBox Grid.Column="1" Text="0" Margin="2,0,2,0"/>
+                                        <TextBox Grid.Column="2" Text="0" Margin="2,0,0,0"/>
+                                    </Grid>
+                                    <TextBlock Text="Rotation" Foreground="#999"/>
+                                    <Grid Margin="0,4,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="0" Margin="0,0,2,0"/>
+                                        <TextBox Grid.Column="1" Text="0" Margin="2,0,2,0"/>
+                                        <TextBox Grid.Column="2" Text="0" Margin="2,0,0,0"/>
+                                    </Grid>
+                                    <TextBlock Text="Scale" Foreground="#999"/>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="1" Margin="0,0,2,0"/>
+                                        <TextBox Grid.Column="1" Text="1" Margin="2,0,2,0"/>
+                                        <TextBox Grid.Column="2" Text="1" Margin="2,0,0,0"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Expander>
+                            
+                            <!-- Material Section -->
+                            <Expander Header="Material" IsExpanded="True" Margin="0,0,0,8">
+                                <StackPanel Margin="8">
+                                    <TextBlock Text="Shader" Foreground="#999"/>
+                                    <ComboBox Margin="0,4,0,8" SelectedIndex="0">
+                                        <ComboBoxItem Content="ship"/>
+                                        <ComboBoxItem Content="matte"/>
+                                        <ComboBoxItem Content="thruster"/>
+                                        <ComboBoxItem Content="background"/>
+                                    </ComboBox>
+                                    <TextBlock Text="Diffuse Texture" Foreground="#999"/>
+                                    <Grid Margin="0,4,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="" IsReadOnly="True"/>
+                                        <Button Grid.Column="1" Content="..." Width="30" Margin="4,0,0,0"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Expander>
+                            
+                            <!-- Team Colors Section -->
+                            <Expander Header="Team Colors" IsExpanded="True">
+                                <StackPanel Margin="8">
+                                    <TextBlock Text="Team Color" Foreground="#999"/>
+                                    <Border Height="24" Background="#808080" 
+                                            CornerRadius="3" Margin="0,4,0,8" Cursor="Hand"/>
+                                    <TextBlock Text="Stripe Color" Foreground="#999"/>
+                                    <Border Height="24" Background="#808080" 
+                                            CornerRadius="3" Margin="0,4,0,0" Cursor="Hand"/>
+                                </StackPanel>
+                            </Expander>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </DockPanel>
+</Window>

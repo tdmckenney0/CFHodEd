@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/CFHodEd.Rendering/CFHodEd.Rendering.csproj" />
+    <Project Path="src/CFHodEd.UI/CFHodEd.UI.csproj" />
     <Project Path="src/GenericMath/GenericMath.csproj" />
     <Project Path="src/HW2HOD/HW2HOD.csproj" />
     <Project Path="src/HW2IFF/HW2IFF.csproj" />

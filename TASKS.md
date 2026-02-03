@@ -1,32 +1,35 @@
 # CFHodEd Cross-Platform Port
 
 ## Phase 1: Foundation ✅
-- [x] Create .NET 8 solution (`SharpHodEditor.slnx`)
-- [x] GenericMath → C# (14 files) ✅
-- [x] HW2IFF → C# (9 files) ✅
+- [x] .NET 8 solution (`SharpHodEditor.slnx`)
+- [x] GenericMath → C# ✅
+- [x] HW2IFF → C# ✅
 
 ## Phase 2: Math & Mesh ✅
-- [x] CFHodEd.Math (Vector, Matrix, etc.) ✅
-- [x] GenericMesh (interfaces, classes) ✅
-- [x] GMWavObjT (OBJ translator) ✅
-- [x] HW2MAD (animation format) ✅
+- [x] CFHodEd.Math ✅
+- [x] GenericMesh ✅
+- [x] GMWavObjT ✅
+- [x] HW2MAD ✅
 
 ## Phase 3: Rendering & HOD ✅
-- [x] CFHodEd.Rendering (Silk.NET OpenGL) ✅
-  - IRenderDevice, OpenGLRenderDevice, resources, shaders
-  - 5 GLSL shaders: standard.vert, ship/matte/thruster/background.frag
-- [x] HW2HOD (HOD file format) ✅
-  - EventList.cs, Joint.cs (IJoint), Marker.cs
-  - EngineEffects.cs (4 classes), Material.cs, Mesh.cs, HOD.cs
+- [x] CFHodEd.Rendering (OpenGL) ✅
+- [x] HW2HOD ✅
 
-## Phase 4: UI Migration 🔜
-- [ ] CFHodEd.UI with Avalonia (13 forms)
-- [ ] 3D viewport with Silk.NET
-- [ ] JSON settings
+## Phase 4: UI Migration 🔄
+- [x] CFHodEd.UI project setup ✅
+- [x] MainWindow layout ✅
+  - Menu bar, toolbar, status bar
+  - Hierarchy tree panel
+  - 3D viewport placeholder
+  - Properties panel
+  - HOD file open/save
+- [ ] OpenGL viewport control
+- [ ] Property bindings
+- [ ] Settings/preferences
 
 ## Build Status ✅
 ```
-8 projects building (0 errors, 0 warnings)
+9 projects (0 errors)
 ├── GenericMath ✅
 ├── HW2IFF ✅
 ├── CFHodEd.Math ✅
@@ -34,5 +37,6 @@
 ├── GMWavObjT ✅
 ├── HW2MAD ✅
 ├── CFHodEd.Rendering ✅
-└── HW2HOD ✅ (NEW)
+├── HW2HOD ✅
+└── CFHodEd.UI ✅ (NEW)
 ```
