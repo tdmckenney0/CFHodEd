@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>GenericMesh</RootNamespace>
+    <AssemblyName>GenericMesh</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GenericMath\GenericMath.csproj" />
+    <ProjectReference Include="..\CFHodEd.Math\CFHodEd.Math.csproj" />
+  </ItemGroup>
+
+</Project>

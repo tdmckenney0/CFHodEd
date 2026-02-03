@@ -6,37 +6,37 @@
 - [x] **Graphics API**: Silk.NET + OpenGL
 - [x] **Scope**: Full UI port required
 
-## Planning
-- [x] Analyze codebase structure and dependencies
-- [x] Map DirectX usage across all 8 projects  
-- [x] Identify clean (DirectX-free) libraries
-- [x] Create implementation plan
+## Phase 1: Foundation (.NET 8 + VB→C# Conversion) ✅
+- [x] Create .NET 8 solution (`SharpHodEditor.slnx`)
+- [x] GenericMath → C# (14 files) ✅
+- [x] HW2IFF → C# (9 files) ✅
 
-## Phase 1: Foundation (.NET 8 + VB→C# Conversion)
-- [x] Create new .NET 8 solution structure (`SharpHodEditor.slnx`)
-- [x] Convert GenericMath to C# / .NET 8 (14 files) ✅ Building
-- [x] Convert HW2IFF to C# / .NET 8 (9 files) ✅ Building
-- [x] Verify builds on Linux ✅
+## Phase 2: Math Abstraction ✅
+- [x] CFHodEd.Math: Vector2/3/4, Matrix, Quaternion, Plane, BoundingBox, ColorValue ✅
+- [x] GenericMesh core: IVertex, IMaterial, VertexFormats, RenderDevice interfaces ✅
+- [/] GenericMesh full: GBasicMesh, GPrimitiveGroup, GVertexGroup (requires more work)
+- [/] GMWavObjT: Stub created, requires GBasicMesh
+- [/] HW2MAD: Stub created, requires full port
 
-## Phase 2: Math Abstraction
-- [x] Create CFHodEd.Math project with System.Numerics wrappers
-- [x] Implement Vector2, Vector3, Vector4, Matrix, Quaternion, ColorValue, Plane, BoundingBox ✅
-- [ ] Convert GenericMesh to C# and use new math types
-- [ ] Convert GMWavObjT to C# and use new math types
-- [ ] Convert HW2MAD to C# and use new math types
-
-## Phase 3: Rendering Abstraction  
-- [ ] Create CFHodEd.Rendering project with Silk.NET
-- [ ] Implement IRenderDevice interface
-- [ ] Implement vertex/index buffer abstractions
-- [ ] Port DirectX shaders to GLSL
-- [ ] Convert HW2HOD to C# and use rendering abstraction
-- [ ] Port D3DHelper functionality to new rendering layer
+## Phase 3: Rendering Abstraction
+- [ ] CFHodEd.Rendering with Silk.NET
+- [ ] IRenderDevice OpenGL implementation
+- [ ] Convert HW2HOD (requires GenericMesh + D3DHelper)
+- [ ] Port shaders to GLSL
 
 ## Phase 4: UI Migration
-- [ ] Create CFHodEd.UI project with Avalonia
-- [ ] Port MainWindow (HODEditorA - 10,712 lines)
-- [ ] Port dialogs and secondary windows (12 forms)
-- [ ] Implement 3D render control with Silk.NET
-- [ ] Replace Registry with JSON settings
-- [ ] Test on Linux, macOS, Windows
+- [ ] CFHodEd.UI with Avalonia
+- [ ] Port MainWindow & dialogs
+- [ ] 3D viewport with Silk.NET
+- [ ] JSON settings (replace Registry)
+
+## Current Build Status
+```
+SharpHodEditor.slnx - 6 projects
+├── GenericMath ✅
+├── HW2IFF ✅
+├── CFHodEd.Math ✅
+├── GenericMesh ✅ (core types)
+├── GMWavObjT ✅ (stub)
+└── HW2MAD ✅ (stub)
+```

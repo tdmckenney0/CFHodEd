@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>GenericMesh.Translators</RootNamespace>
+    <AssemblyName>GMWavObjT</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GenericMesh\GenericMesh.csproj" />
+    <ProjectReference Include="..\CFHodEd.Math\CFHodEd.Math.csproj" />
+  </ItemGroup>
+
+</Project>

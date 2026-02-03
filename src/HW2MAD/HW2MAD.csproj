@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>HW2MAD</RootNamespace>
+    <AssemblyName>HW2MAD</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HW2IFF\HW2IFF.csproj" />
+    <ProjectReference Include="..\CFHodEd.Math\CFHodEd.Math.csproj" />
+  </ItemGroup>
+
+</Project>
