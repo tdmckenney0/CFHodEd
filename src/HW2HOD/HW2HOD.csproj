@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>HW2HOD</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CFHodEd.Math\CFHodEd.Math.csproj" />
+    <ProjectReference Include="..\CFHodEd.Rendering\CFHodEd.Rendering.csproj" />
+    <ProjectReference Include="..\GenericMesh\GenericMesh.csproj" />
+    <ProjectReference Include="..\HW2IFF\HW2IFF.csproj" />
+    <ProjectReference Include="..\HW2MAD\HW2MAD.csproj" />
+  </ItemGroup>
+</Project>
