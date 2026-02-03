@@ -150,21 +150,25 @@ public partial class MainWindow : Window
 
     private void ResetCamera_Click(object? sender, RoutedEventArgs e)
     {
+        Viewport.ResetCamera();
         SetStatus("Camera reset");
     }
 
     private void WireframeMode_Click(object? sender, RoutedEventArgs e)
     {
+        Viewport.Mode = RenderMode.Wireframe;
         SetStatus("Wireframe mode");
     }
 
     private void SolidMode_Click(object? sender, RoutedEventArgs e)
     {
+        Viewport.Mode = RenderMode.Solid;
         SetStatus("Solid mode");
     }
 
     private void TexturedMode_Click(object? sender, RoutedEventArgs e)
     {
+        Viewport.Mode = RenderMode.Textured;
         SetStatus("Textured mode");
     }
 

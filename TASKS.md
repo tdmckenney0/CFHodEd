@@ -1,42 +1,32 @@
 # CFHodEd Cross-Platform Port
 
-## Phase 1: Foundation ✅
-- [x] .NET 8 solution (`SharpHodEditor.slnx`)
-- [x] GenericMath → C# ✅
-- [x] HW2IFF → C# ✅
+## Phase 1-3: Complete ✅
+- GenericMath, HW2IFF, CFHodEd.Math, GenericMesh, GMWavObjT, HW2MAD
+- CFHodEd.Rendering (Silk.NET OpenGL), HW2HOD
 
-## Phase 2: Math & Mesh ✅
-- [x] CFHodEd.Math ✅
-- [x] GenericMesh ✅
-- [x] GMWavObjT ✅
-- [x] HW2MAD ✅
-
-## Phase 3: Rendering & HOD ✅
-- [x] CFHodEd.Rendering (OpenGL) ✅
-- [x] HW2HOD ✅
-
-## Phase 4: UI Migration 🔄
-- [x] CFHodEd.UI project setup ✅
-- [x] MainWindow layout ✅
-  - Menu bar, toolbar, status bar
-  - Hierarchy tree panel
-  - 3D viewport placeholder
-  - Properties panel
-  - HOD file open/save
-- [ ] OpenGL viewport control
+## Phase 4: UI Migration ✅
+- [x] CFHodEd.UI project (Avalonia 11.2.3) ✅
+- [x] MainWindow layout (menu, toolbar, panels) ✅
+- [x] OpenGLViewport control ✅
+  - Software-rendered 3D viewport
+  - XZ grid, XYZ axes
+  - Orbit camera (LMB rotate, MMB/RMB pan, scroll zoom)
+  - WASD + R keyboard controls
+  - 3 render modes (wireframe/solid/textured)
+- [x] HOD file open/save ✅
+- [x] Hierarchy tree view ✅
 - [ ] Property bindings
-- [ ] Settings/preferences
+- [ ] Settings dialog
+- [ ] OBJ import/export
 
 ## Build Status ✅
 ```
 9 projects (0 errors)
-├── GenericMath ✅
-├── HW2IFF ✅
-├── CFHodEd.Math ✅
-├── GenericMesh ✅
-├── GMWavObjT ✅
-├── HW2MAD ✅
-├── CFHodEd.Rendering ✅
-├── HW2HOD ✅
-└── CFHodEd.UI ✅ (NEW)
+└── CFHodEd.UI ✅
+```
+
+## To Run
+```bash
+cd /home/stella/Projects/CFHodEd-master
+dotnet run --project src/CFHodEd.UI
 ```
