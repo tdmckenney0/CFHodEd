@@ -2,5 +2,6 @@
   <Folder Name="/src/">
     <Project Path="src/GenericMath/GenericMath.csproj" />
     <Project Path="src/HW2IFF/HW2IFF.csproj" />
+    <Project Path="src/CFHodEd.Math/CFHodEd.Math.csproj" />
   </Folder>
 </Solution>
