@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>CFHodEd.Rendering</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.21.0" />
+    <PackageReference Include="Silk.NET.Windowing" Version="2.21.0" />
+    <PackageReference Include="Silk.NET.Input" Version="2.21.0" />
+    <PackageReference Include="StbImageSharp" Version="2.30.15" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CFHodEd.Math\CFHodEd.Math.csproj" />
+  </ItemGroup>
+
+  <!-- Embed GLSL shaders -->
+  <ItemGroup>
+    <EmbeddedResource Include="Shaders\*.glsl" />
+    <EmbeddedResource Include="Shaders\*.vert" />
+    <EmbeddedResource Include="Shaders\*.frag" />
+  </ItemGroup>
+</Project>
