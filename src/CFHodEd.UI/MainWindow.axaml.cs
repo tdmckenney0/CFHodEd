@@ -45,6 +45,7 @@ public partial class MainWindow : Window
                 await using var stream = await file.OpenReadAsync();
                 var hod = new HOD();
                 hod.Read(stream);
+                
                 _viewModel.CurrentHod = hod;
                 _viewModel.CurrentFilePath = file.Path.LocalPath;
                 _viewModel.StatusText = $"Loaded: {System.IO.Path.GetFileName(file.Path.LocalPath)}";

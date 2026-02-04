@@ -10,14 +10,17 @@ public readonly struct TextureParameters
 {
     public readonly string Name;
     public readonly int UVSet;
+    public readonly int TextureIndex;
 
-    public TextureParameters(string name = "", int uvSet = 0)
+    public TextureParameters(string name = "", int uvSet = 0, int textureIndex = -1)
     {
         Name = name ?? "";
         UVSet = uvSet;
+        TextureIndex = textureIndex;
     }
 
-    public static TextureParameters Empty => new("", 0);
+    public static TextureParameters Empty => new("", 0, -1);
+    public bool HasTexture => TextureIndex >= 0;
 
     public override string ToString() => Name;
 }
@@ -126,19 +129,48 @@ public sealed class Material
         // Read parameters using VB.NET format: type, dataLength, data, name
         for (int i = 0; i < paramCount; i++)
         {
-            // Parameter type (int32)
+            // Parameter type: 4=Colour, 5=Texture
             int paramType = iff.ReadInt32();
             
             // Data length (int32)
             int dataLength = iff.ReadInt32();
             
-            // Skip the data bytes
-            for (int b = 0; b < dataLength; b++)
-                iff.ReadByte();
+            // Parse based on type
+            int textureIndex = -1;
+            if (paramType == 5 && dataLength == 4) // Texture
+            {
+                textureIndex = iff.ReadInt32();
+            }
+            else
+            {
+                // Skip the data bytes
+                for (int b = 0; b < dataLength; b++)
+                    iff.ReadByte();
+            }
             
             // Name comes AFTER data (only in versioned chunks, version 1001+)
+            string paramName = "";
             if (version > 0)
-                iff.ReadString();
+                paramName = iff.ReadString();
+            
+            // Assign texture index by parameter name
+            if (paramType == 5 && textureIndex >= 0)
+            {
+                // Handle $ prefix in parameter names (e.g. "$diffuse" -> "diffuse")
+                string normalizedName = paramName.TrimStart('$').ToLowerInvariant();
+                var texParam = new TextureParameters(paramName, 0, textureIndex);
+                switch (normalizedName)
+                {
+                    case "diffuse": _shaderParams.Diffuse = texParam; break;
+                    case "glow": _shaderParams.Glow = texParam; break;
+                    case "specular": _shaderParams.Specular = texParam; break;
+                    case "reflection": _shaderParams.Reflection = texParam; break;
+                    case "normal": _shaderParams.Normal = texParam; break;
+                    case "team": _shaderParams.Team = texParam; break;
+                    case "pain": _shaderParams.Pain = texParam; break;
+                    case "stripe": _shaderParams.Stripe = texParam; break;
+                }
+            }
         }
     }
 

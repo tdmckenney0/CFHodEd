@@ -43,6 +43,9 @@ public class OpenGLViewport : Control
     
     // Model
     private HOD? _model;
+    
+    // Texture cache (texture index -> RGBA pixel data)
+    private readonly Dictionary<int, (byte[] data, int width, int height)> _textureCache = new();
 
     public event Action? RenderFrame;
 
@@ -52,6 +55,7 @@ public class OpenGLViewport : Control
         set
         {
             _model = value;
+            _textureCache.Clear();
             if (value != null)
                 FocusOnModel();
             InvalidateVisual();
@@ -343,8 +347,8 @@ public class OpenGLViewport : Control
         // Light direction (from camera)
         var lightDir = Vector3.Normalize(_cameraPosition - _cameraTarget);
         
-        // Collect triangles for depth sorting (for solid mode)
-        var triangles = new List<(float depth, int i0, int i1, int i2, MeshLOD lod)>();
+        // Collect triangles for depth sorting (includes texture index for textured mode)
+        var triangles = new List<(float depth, int i0, int i1, int i2, MeshLOD lod, int texIdx)>();
 
         foreach (var mesh in _model.Meshes)
         {
@@ -352,6 +356,15 @@ public class OpenGLViewport : Control
             var lod = mesh.LODs[0];
             var vertices = lod.Vertices;
             var indices = lod.Indices;
+            
+            // Get texture index from material
+            int texIdx = -1;
+            if (lod.MaterialIndex >= 0 && lod.MaterialIndex < _model.Materials.Count)
+            {
+                var mat = _model.Materials[lod.MaterialIndex];
+                if (mat.ShaderParameters.Diffuse.HasTexture)
+                    texIdx = mat.ShaderParameters.Diffuse.TextureIndex;
+            }
 
             for (int i = 0; i + 2 < indices.Count; i += 3)
             {
@@ -373,33 +386,33 @@ public class OpenGLViewport : Control
                 var tv2 = Vector3.TransformCoordinate(new Vector3(v2.X, v2.Y, v2.Z), viewMatrix);
                 float avgDepth = (tv0.Z + tv1.Z + tv2.Z) / 3f;
 
-                triangles.Add((avgDepth, i0, i1, i2, lod));
+                triangles.Add((avgDepth, i0, i1, i2, lod, texIdx));
             }
         }
 
         // Sort back-to-front for painter's algorithm
         triangles.Sort((a, b) => b.depth.CompareTo(a.depth));
 
-        foreach (var (depth, i0, i1, i2, lod) in triangles)
+        foreach (var (depth, i0, i1, i2, lod, texIdx) in triangles)
         {
             var vertices = lod.Vertices;
-            var v0 = vertices[i0].Position;
-            var v1 = vertices[i1].Position;
-            var v2 = vertices[i2].Position;
+            var vert0 = vertices[i0];
+            var vert1 = vertices[i1];
+            var vert2 = vertices[i2];
 
-            var p0Pos = new Vector3(v0.X, v0.Y, v0.Z);
-            var p1Pos = new Vector3(v1.X, v1.Y, v1.Z);
-            var p2Pos = new Vector3(v2.X, v2.Y, v2.Z);
+            var p0Pos = new Vector3(vert0.Position.X, vert0.Position.Y, vert0.Position.Z);
+            var p1Pos = new Vector3(vert1.Position.X, vert1.Position.Y, vert1.Position.Z);
+            var p2Pos = new Vector3(vert2.Position.X, vert2.Position.Y, vert2.Position.Z);
 
             // Calculate face normal for backface culling and lighting
             var edge1 = p1Pos - p0Pos;
             var edge2 = p2Pos - p0Pos;
             var faceNormal = Vector3.Normalize(Vector3.Cross(edge1, edge2));
             
-            // Backface culling - skip if facing away from camera
+            // Backface culling - skip if facing away from camera (for solid/textured modes)
             var toCamera = Vector3.Normalize(_cameraPosition - (p0Pos + p1Pos + p2Pos) / 3f);
             float dotCamera = Vector3.Dot(faceNormal, toCamera);
-            if (dotCamera < 0 && _renderMode == RenderMode.Solid) continue;
+            if (dotCamera < 0 && _renderMode != RenderMode.Wireframe) continue;
 
             var p0 = ProjectPoint(p0Pos, width, height);
             var p1 = ProjectPoint(p1Pos, width, height);
@@ -407,15 +420,36 @@ public class OpenGLViewport : Control
 
             if (!p0.HasValue || !p1.HasValue || !p2.HasValue) continue;
 
-            if (_renderMode == RenderMode.Solid)
+            float diffuse = System.Math.Max(0.2f, Vector3.Dot(faceNormal, lightDir));
+
+            if (_renderMode == RenderMode.Textured)
             {
-                // Flat shading: calculate diffuse lighting
-                float diffuse = System.Math.Max(0.2f, Vector3.Dot(faceNormal, lightDir));
+                var tex = GetTexture(texIdx);
+                if (tex.HasValue)
+                {
+                    // Get UV coords
+                    var uv0 = (vert0.TexCoords.X, vert0.TexCoords.Y);
+                    var uv1 = (vert1.TexCoords.X, vert1.TexCoords.Y);
+                    var uv2 = (vert2.TexCoords.X, vert2.TexCoords.Y);
+                    DrawTexturedTriangle(ptr, width, height, stride, p0.Value, p1.Value, p2.Value,
+                        uv0, uv1, uv2, tex.Value.data, tex.Value.width, tex.Value.height, diffuse);
+                }
+                else
+                {
+                    // Fallback to solid color when no texture
+                    byte r = (byte)(_meshColor.R * diffuse);
+                    byte g = (byte)(_meshColor.G * diffuse);
+                    byte b = (byte)(_meshColor.B * diffuse);
+                    uint color = (uint)(255 << 24 | r << 16 | g << 8 | b);
+                    DrawFilledTriangle(ptr, width, height, stride, p0.Value, p1.Value, p2.Value, color);
+                }
+            }
+            else if (_renderMode == RenderMode.Solid)
+            {
                 byte r = (byte)(_meshColor.R * diffuse);
                 byte g = (byte)(_meshColor.G * diffuse);
                 byte b = (byte)(_meshColor.B * diffuse);
                 uint color = (uint)(255 << 24 | r << 16 | g << 8 | b);
-
                 DrawFilledTriangle(ptr, width, height, stride, p0.Value, p1.Value, p2.Value, color);
             }
             else
@@ -466,6 +500,69 @@ public class OpenGLViewport : Control
                 ptr[y * stride + x] = color;
             }
         }
+    }
+
+    private unsafe void DrawTexturedTriangle(uint* ptr, int width, int height, int stride,
+        (int x, int y) p0, (int x, int y) p1, (int x, int y) p2,
+        (float u, float v) uv0, (float u, float v) uv1, (float u, float v) uv2,
+        byte[] texData, int texWidth, int texHeight, float lighting)
+    {
+        // Bounding box
+        int minX = System.Math.Max(0, System.Math.Min(p0.x, System.Math.Min(p1.x, p2.x)));
+        int maxX = System.Math.Min(width - 1, System.Math.Max(p0.x, System.Math.Max(p1.x, p2.x)));
+        int minY = System.Math.Max(0, System.Math.Min(p0.y, System.Math.Min(p1.y, p2.y)));
+        int maxY = System.Math.Min(height - 1, System.Math.Max(p0.y, System.Math.Max(p1.y, p2.y)));
+
+        // Precompute denominator for barycentric coords
+        float denom = (float)((p1.y - p2.y) * (p0.x - p2.x) + (p2.x - p1.x) * (p0.y - p2.y));
+        if (System.Math.Abs(denom) < 0.0001f) return;
+
+        for (int y = minY; y <= maxY; y++)
+        {
+            for (int x = minX; x <= maxX; x++)
+            {
+                // Barycentric coordinates
+                float w0 = ((p1.y - p2.y) * (x - p2.x) + (p2.x - p1.x) * (y - p2.y)) / denom;
+                float w1 = ((p2.y - p0.y) * (x - p2.x) + (p0.x - p2.x) * (y - p2.y)) / denom;
+                float w2 = 1 - w0 - w1;
+
+                if (w0 >= 0 && w1 >= 0 && w2 >= 0)
+                {
+                    // Interpolate UV
+                    float u = w0 * uv0.u + w1 * uv1.u + w2 * uv2.u;
+                    float v = w0 * uv0.v + w1 * uv1.v + w2 * uv2.v;
+
+                    // Sample texture (wrap mode)
+                    u = u - MathF.Floor(u);
+                    v = v - MathF.Floor(v);
+                    int tx = System.Math.Clamp((int)(u * texWidth), 0, texWidth - 1);
+                    int ty = System.Math.Clamp((int)(v * texHeight), 0, texHeight - 1);
+
+                    int texIdx = (ty * texWidth + tx) * 4;
+                    byte r = (byte)(texData[texIdx] * lighting);
+                    byte g = (byte)(texData[texIdx + 1] * lighting);
+                    byte b = (byte)(texData[texIdx + 2] * lighting);
+
+                    ptr[y * stride + x] = (uint)(255 << 24 | r << 16 | g << 8 | b);
+                }
+            }
+        }
+    }
+
+    private (byte[] data, int width, int height)? GetTexture(int index)
+    {
+        if (_model == null) return null;
+        if (index < 0 || index >= _model.Textures.Count) return null;
+        
+        if (!_textureCache.TryGetValue(index, out var cached))
+        {
+            var tex = _model.Textures[index];
+            var data = tex.GetRGBAData();
+            if (data == null) return null;
+            cached = (data, tex.Width, tex.Height);
+            _textureCache[index] = cached;
+        }
+        return cached;
     }
 
     private void UpdateCameraPosition()
@@ -563,6 +660,16 @@ public class OpenGLViewport : Control
                 break;
             case Key.R:
                 ResetCamera();
+                break;
+            case Key.F:
+                // Cycle through render modes: Wireframe -> Solid -> Textured -> Wireframe
+                _renderMode = _renderMode switch
+                {
+                    RenderMode.Wireframe => RenderMode.Solid,
+                    RenderMode.Solid => RenderMode.Textured,
+                    RenderMode.Textured => RenderMode.Wireframe,
+                    _ => RenderMode.Solid
+                };
                 break;
         }
 

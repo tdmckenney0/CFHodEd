@@ -34,6 +34,7 @@ public sealed class HOD : IHodFile
     // HVMD data (mesh data)
     private readonly EventList<Material> _materials = new();
     private readonly EventList<Mesh> _meshes = new();
+    private readonly EventList<Texture> _textures = new();
 
     // Rendering properties
     private ColorValue _teamColor = new(0.5f, 0.5f, 0.5f, 1f);
@@ -93,6 +94,7 @@ public sealed class HOD : IHodFile
     // HVMD accessors
     public IList<Material> Materials => _materials;
     public IList<Mesh> Meshes => _meshes;
+    public IList<Texture> Textures => _textures;
 
     // Rendering properties
     public ColorValue TeamColor { get => _teamColor; set => _teamColor = value; }
@@ -187,6 +189,7 @@ public sealed class HOD : IHodFile
         iff.AddHandler("STAT", ChunkType.Normal, ReadSTATChunk, 1001);
         iff.AddHandler("STAT", ChunkType.Default, ReadSTATChunk);  // Old format
         iff.AddHandler("MULT", ChunkType.Normal, ReadMULTChunk, 1400);
+        iff.AddHandler("LMIP", ChunkType.Default, ReadLMIPChunk);
         // Skip other chunk types for now - they'll be ignored by the parser
         iff.Parse();
     }
@@ -196,6 +199,13 @@ public sealed class HOD : IHodFile
         var material = new Material();
         material.ReadIFF(iff, (int)attrs.Version);
         _materials.Add(material);
+    }
+
+    private void ReadLMIPChunk(IFFReader iff, ChunkAttributes attrs)
+    {
+        var texture = new Texture();
+        texture.ReadIFF(iff, attrs);
+        _textures.Add(texture);
     }
 
     // Current mesh being read (for nested BMSH chunks)
@@ -249,9 +259,10 @@ public sealed class HOD : IHodFile
         // Read all parts
         for (int p = 0; p < partCount; p++)
         {
-            // Read material index
+        // Read material index (use first part's material for now)
             int materialIndex = iff.ReadInt32();
-            lod.MaterialIndex = materialIndex;
+            if (p == 0) // Only use first part's material
+                lod.MaterialIndex = materialIndex;
             
             // Read vertex mask (determines which vertex components are present)
             int vertexMask = iff.ReadInt32();
@@ -259,39 +270,57 @@ public sealed class HOD : IHodFile
             // Read vertex count
             int vertexCount = iff.ReadInt32();
             
-            // Determine vertex format from mask
-            bool hasPosition = (vertexMask & 0x01) != 0;     // Position
-            bool hasNormal = (vertexMask & 0x02) != 0;       // Normal
-            bool hasTangent = (vertexMask & 0x04) != 0;      // Tangent
-            bool hasBinormal = (vertexMask & 0x08) != 0;     // Binormal
-            bool hasColor = (vertexMask & 0x10) != 0;        // Color
-            bool hasTexCoord0 = (vertexMask & 0x20) != 0;    // TexCoord0
-            bool hasTexCoord1 = (vertexMask & 0x40) != 0;    // TexCoord1
+            // Determine vertex format from mask (HOD format bits from VertexMasks.vb)
+            bool hasPosition = (vertexMask & 0x01) != 0;     // Position (4 floats: X,Y,Z,W)
+            bool hasNormal = (vertexMask & 0x02) != 0;       // Normal (4 floats: X,Y,Z,W)
+            bool hasColour = (vertexMask & 0x04) != 0;       // Colour (1 int)
+            bool hasTexture0 = (vertexMask & 0x08) != 0;     // Texture0 (2 floats)
+            bool hasTexture1 = (vertexMask & 0x10) != 0;     // Texture1 (2 floats, version 1401 only)
+            bool hasTexture2 = (vertexMask & 0x20) != 0;     // Texture2 (2 floats, version 1401 only)
+            bool hasTangent = (vertexMask & 0x2000) != 0;    // Tangent (3 floats)
+            bool hasBinormal = (vertexMask & 0x4000) != 0;   // Binormal (3 floats)
             
-            // Read vertices
+            // Read vertices (order matches BasicVertex.ReadIFF)
             for (int v = 0; v < vertexCount; v++)
             {
                 var vertex = new HODVertex();
                 
                 if (hasPosition)
+                {
                     vertex.Position = new Vector3(iff.ReadSingle(), iff.ReadSingle(), iff.ReadSingle());
+                    iff.ReadSingle(); // Skip W component
+                }
                 if (hasNormal)
+                {
                     vertex.Normal = new Vector3(iff.ReadSingle(), iff.ReadSingle(), iff.ReadSingle());
+                    iff.ReadSingle(); // Skip W component
+                }
+                if (hasColour)
+                    iff.ReadInt32(); // Skip colour
+                if (hasTexture0)
+                    vertex.TexCoords = new Vector2(iff.ReadSingle(), iff.ReadSingle());
+                // Texture1/Texture2 only present in version 1401
+                if (attrs.Version == 1401)
+                {
+                    if (hasTexture1)
+                    {
+                        // Skip Texture1 (2 floats)
+                        iff.ReadSingle(); iff.ReadSingle();
+                    }
+                    if (hasTexture2)
+                    {
+                        // Skip Texture2 (2 floats)
+                        iff.ReadSingle(); iff.ReadSingle();
+                    }
+                }
                 if (hasTangent)
+                {
                     vertex.Tangent = new Vector3(iff.ReadSingle(), iff.ReadSingle(), iff.ReadSingle());
+                }
                 if (hasBinormal)
                 {
                     // Skip binormal (3 floats)
                     iff.ReadSingle(); iff.ReadSingle(); iff.ReadSingle();
-                }
-                if (hasColor)
-                    iff.ReadInt32(); // Skip color
-                if (hasTexCoord0)
-                    vertex.TexCoords = new Vector2(iff.ReadSingle(), iff.ReadSingle());
-                if (hasTexCoord1)
-                {
-                    // Skip second UV (2 floats)
-                    iff.ReadSingle(); iff.ReadSingle();
                 }
                     
                 lod.Vertices.Add(vertex);
