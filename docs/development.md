@@ -76,9 +76,31 @@ Tests for HOD data model contracts and coordinate conversion rules that underpin
 dotnet test src/CFHodEd.Tests.Godot
 ```
 
-> **Agent rule:** After modifying any format library, math type, or Godot script, run
-> both test suites (`dotnet test src/CFHodEd.Tests` and `dotnet test src/CFHodEd.Tests.Godot`)
-> and verify all tests pass before declaring the task complete.
+> **Agent rule:** After modifying any format library, math type, or Godot script:
+> 1. Write new tests for any new functionality you added.
+> 2. Run both test suites and verify all tests pass:
+>    ```bash
+>    dotnet test src/CFHodEd.Tests
+>    dotnet test src/CFHodEd.Tests.Godot
+>    ```
+> 3. For visual changes (rendering, mesh loading, camera), capture a screenshot to prove the result (see "Capturing screenshots" below).
+
+### Capturing screenshots
+
+The editor has a built-in `--screenshot` mode for visual verification:
+
+```bash
+# Render the default test HOD — output goes to temp/screenshots/screenshot.png
+godot --path src/CFHodEd.Godot -- --screenshot
+
+# Specify an output name (use absolute paths to avoid ambiguity)
+godot --path src/CFHodEd.Godot -- --screenshot C:/Users/tmcke/Projects/SharpHodEditor/temp/screenshots/my_change.png
+
+# Render a specific HOD file
+godot --path src/CFHodEd.Godot -- --screenshot C:/abs/path/out.png --hod C:/abs/path/to/file.hod
+```
+
+The app loads the model, renders 3 frames, saves the SubViewport as a PNG, and exits. All agent temporary files — screenshots, scratch exports, generated data — must go in `temp/` (gitignored). Read the saved PNG with the `Read` tool to verify visually.
 
 ## How-To Guides
 

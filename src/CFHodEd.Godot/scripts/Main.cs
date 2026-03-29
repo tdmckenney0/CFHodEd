@@ -58,6 +58,56 @@ public partial class Main : Control
             _propertiesPanel.ShowProperties(item, _currentHod);
 
         SetStatus("Ready — open a .hod file to begin");
+
+        // Headless screenshot mode: --screenshot <output.png> [--hod <file.hod>]
+        var userArgs = OS.GetCmdlineUserArgs();
+        if (userArgs.Contains("--screenshot"))
+            TakeScreenshot(userArgs);
+    }
+
+    // -------------------------------------------------------------------------
+    // Screenshot mode  (invoked via: godot --path src/CFHodEd.Godot -- --screenshot out.png)
+    // -------------------------------------------------------------------------
+
+    private async void TakeScreenshot(string[] args)
+    {
+        string? hodPath    = null;
+        // Default to temp/screenshots/ in the repo root (already gitignored)
+        string  outputPath = System.IO.Path.GetFullPath(
+            System.IO.Path.Combine(
+                ProjectSettings.GlobalizePath("res://"), "..", "..", "temp", "screenshots", "screenshot.png"));
+
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] == "--hod")        hodPath    = args[i + 1];
+            if (args[i] == "--screenshot") outputPath = args[i + 1];
+        }
+
+        // Default HOD: the test fixture in test/meg_starjumper.hod
+        hodPath ??= System.IO.Path.GetFullPath(
+            System.IO.Path.Combine(
+                ProjectSettings.GlobalizePath("res://"), "..", "..", "test", "meg_starjumper.hod"));
+
+        if (System.IO.File.Exists(hodPath))
+            LoadHOD(hodPath);
+
+        // Ensure the SubViewport renders every frame while we wait
+        _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Always;
+
+        // Wait for the GPU to flush the rendered frames
+        for (int i = 0; i < 3; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+        var image = _viewport.GetTexture().GetImage();
+
+        if (!System.IO.Path.IsPathRooted(outputPath))
+            outputPath = System.IO.Path.GetFullPath(outputPath);
+
+        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(outputPath)!);
+        image.SavePng(outputPath);
+        GD.Print($"[Screenshot] {image.GetWidth()}x{image.GetHeight()} → {outputPath}");
+
+        GetTree().Quit();
     }
 
     // -------------------------------------------------------------------------

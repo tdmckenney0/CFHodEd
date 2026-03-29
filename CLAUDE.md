@@ -101,9 +101,34 @@ Key tests:
 - `HODLoaderTests.cs` — Z-axis negation (LH→RH), winding-order swap, HOD data pre-conditions
 - `HierarchyPanelTests.cs` — joint hierarchy, mesh/material/marker list contracts
 
-### Agent rule: always test your changes
+### Agent rule: write and run tests for every change
 
-**All agents modifying format libraries, math, or Godot scripts must run the relevant tests and verify they pass before marking work complete.** Run both suites: `dotnet test src/CFHodEd.Tests` and `dotnet test src/CFHodEd.Tests.Godot`.
+**All agents must:**
+1. **Write new tests** for any new functionality they add — in `CFHodEd.Tests` for non-Godot code, in `CFHodEd.Tests.Godot` for HOD model contracts.
+2. **Run both suites** and verify they pass before declaring work complete:
+   ```bash
+   dotnet test src/CFHodEd.Tests
+   dotnet test src/CFHodEd.Tests.Godot
+   ```
+3. **Capture a screenshot** for any change to visual rendering, mesh loading, or camera behavior (see below).
+4. **Place all temporary files** (screenshots, scratch exports, generated data) in `temp/` — it is gitignored.
+
+### Visual verification — screenshots
+
+The editor supports a `--screenshot` command-line flag. Use it to prove visual changes work:
+
+```bash
+# Capture the default test HOD — output goes to temp/screenshots/screenshot.png
+godot --path src/CFHodEd.Godot -- --screenshot
+
+# Capture with a specific output name (always use absolute paths)
+godot --path src/CFHodEd.Godot -- --screenshot C:/Users/tmcke/Projects/SharpHodEditor/temp/screenshots/my_change.png
+
+# Capture a specific HOD file
+godot --path src/CFHodEd.Godot -- --screenshot C:/Users/tmcke/Projects/SharpHodEditor/temp/screenshots/result.png --hod C:/abs/path/to/file.hod
+```
+
+The app loads the model, renders 3 frames, saves the SubViewport as PNG, and exits. All agent temporary files — screenshots, generated exports, scratch data — must go in `temp/` (already gitignored). Read the saved PNG with the `Read` tool to verify the result visually.
 
 ## Code Conventions
 
