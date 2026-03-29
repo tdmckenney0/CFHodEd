@@ -4,17 +4,19 @@ using Xunit;
 namespace CFHodEd.Tests.HW2HOD;
 
 /// <summary>
-/// Tests for loading the real HOD test fixture (test/meg_starjumper.hod).
-/// The .csproj copies the file to TestData/meg_starjumper.hod in the output directory.
+/// Tests against meg_starjumper.hod specifically.
+/// Place the file in test/hod-files/meg_starjumper.hod — fixture tests return early (pass trivially) when absent.
+/// The .csproj copies all files from test/hod-files/ to TestData/ in the output directory.
 /// </summary>
 public class HodReadTests
 {
-    private static readonly string TestHodPath =
-        Path.Combine(AppContext.BaseDirectory, "TestData", "meg_starjumper.hod");
+    private static readonly string? TestHodPath = TestFixtures.FindHod("meg_starjumper.hod");
 
-    private HOD LoadTestHod()
+    /// <summary>Returns null when the fixture file is absent; callers return early in that case.</summary>
+    private HOD? TryLoadTestHod()
     {
-        Assert.True(File.Exists(TestHodPath), $"Test HOD not found: {TestHodPath}");
+        if (TestHodPath is null)
+            return null;
         var hod = new HOD();
         using var fs = File.OpenRead(TestHodPath);
         hod.Read(fs);
@@ -24,49 +26,56 @@ public class HodReadTests
     [Fact]
     public void Read_TestFile_DoesNotThrow()
     {
-        var ex = Record.Exception(() => LoadTestHod());
+        if (TestHodPath is null) return;
+        var ex = Record.Exception(() => TryLoadTestHod());
         Assert.Null(ex);
     }
 
     [Fact]
     public void Read_TestFile_HasExpectedVersion()
     {
-        var hod = LoadTestHod();
+        var hod = TryLoadTestHod();
+        if (hod is null) return;
         Assert.Equal(0x200, hod.Version);
     }
 
     [Fact]
     public void Read_TestFile_HasExpectedName()
     {
-        var hod = LoadTestHod();
+        var hod = TryLoadTestHod();
+        if (hod is null) return;
         Assert.Equal("Homeworld2 Multi Mesh File", hod.Name);
     }
 
     [Fact]
     public void Read_TestFile_HasMeshes()
     {
-        var hod = LoadTestHod();
+        var hod = TryLoadTestHod();
+        if (hod is null) return;
         Assert.NotEmpty(hod.Meshes);
     }
 
     [Fact]
     public void Read_TestFile_HasMaterials()
     {
-        var hod = LoadTestHod();
+        var hod = TryLoadTestHod();
+        if (hod is null) return;
         Assert.NotEmpty(hod.Materials);
     }
 
     [Fact]
     public void Read_TestFile_RootJoint_HasName()
     {
-        var hod = LoadTestHod();
+        var hod = TryLoadTestHod();
+        if (hod is null) return;
         Assert.False(string.IsNullOrEmpty(hod.Root.Name));
     }
 
     [Fact]
     public void Read_TestFile_Meshes_HaveVertices()
     {
-        var hod = LoadTestHod();
+        var hod = TryLoadTestHod();
+        if (hod is null) return;
         foreach (var mesh in hod.Meshes)
         {
             Assert.NotEmpty(mesh.LODs);
@@ -78,7 +87,8 @@ public class HodReadTests
     [Fact]
     public void Read_TestFile_Meshes_HaveIndices()
     {
-        var hod = LoadTestHod();
+        var hod = TryLoadTestHod();
+        if (hod is null) return;
         foreach (var mesh in hod.Meshes)
         {
             var lod0 = mesh.LODs[0];
@@ -91,7 +101,8 @@ public class HodReadTests
     [Fact]
     public void Read_TestFile_Materials_HaveNames()
     {
-        var hod = LoadTestHod();
+        var hod = TryLoadTestHod();
+        if (hod is null) return;
         foreach (var mat in hod.Materials)
             Assert.False(string.IsNullOrEmpty(mat.Name));
     }

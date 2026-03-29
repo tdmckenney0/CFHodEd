@@ -83,10 +83,10 @@ public partial class Main : Control
             if (args[i] == "--screenshot") outputPath = args[i + 1];
         }
 
-        // Default HOD: the test fixture in test/meg_starjumper.hod
+        // Default HOD: test/hod-files/meg_starjumper.hod (gitignored; place your own file there)
         hodPath ??= System.IO.Path.GetFullPath(
             System.IO.Path.Combine(
-                ProjectSettings.GlobalizePath("res://"), "..", "..", "test", "meg_starjumper.hod"));
+                ProjectSettings.GlobalizePath("res://"), "..", "..", "test", "hod-files", "meg_starjumper.hod"));
 
         if (System.IO.File.Exists(hodPath))
             LoadHOD(hodPath);

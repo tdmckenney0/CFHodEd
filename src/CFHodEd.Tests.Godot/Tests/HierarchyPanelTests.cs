@@ -142,8 +142,8 @@ public class HierarchyPanelTests
     [TestCase]
     public void RealHod_HasExpectedSections()
     {
-        var hodPath = Path.Combine(AppContext.BaseDirectory, "TestData", "meg_starjumper.hod");
-        if (!File.Exists(hodPath)) { AssertBool(true).IsTrue(); return; }
+        var hodPath = TestFixtures.FindHod("meg_starjumper.hod");
+        if (hodPath is null) { AssertBool(true).IsTrue(); return; }
 
         var hod = new HOD();
         using var fs = File.OpenRead(hodPath);

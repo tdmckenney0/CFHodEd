@@ -86,7 +86,8 @@ dotnet test src/CFHodEd.Tests
 | `Math/MatrixTests.cs` | Matrix multiply, transpose, invert, rotation |
 | `Math/QuaternionTests.cs` | Quaternion slerp, axis-angle, matrix round-trip |
 | `HW2IFF/IFFReaderWriterTests.cs` | IFF chunk round-trips (Default, Form, Normal types) |
-| `HW2HOD/HodReadTests.cs` | HOD parsing of `test/meg_starjumper.hod` |
+| `HW2HOD/HodReadTests.cs` | HOD parsing of `meg_starjumper.hod` (skips if absent from `test/hod-files/`) |
+| `HW2HOD/HodDiscoveryTests.cs` | Basic parse checks run against every `.hod` file in `test/hod-files/` |
 | `HW2HOD/TextureDecompressionTests.cs` | DXT1/3/5 and raw 8888 decompression |
 
 ### Integration tests — `CFHodEd.Tests.Godot` (gdUnit4)
@@ -118,7 +119,7 @@ Key tests:
 The editor supports a `--screenshot` command-line flag. Use it to prove visual changes work:
 
 ```bash
-# Capture the default test HOD — output goes to temp/screenshots/screenshot.png
+# Capture the default test HOD (test/hod-files/meg_starjumper.hod) — output goes to temp/screenshots/screenshot.png
 godot --path src/CFHodEd.Godot -- --screenshot
 
 # Capture with a specific output name (always use absolute paths)

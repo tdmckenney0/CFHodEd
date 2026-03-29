@@ -191,3 +191,6 @@ ModelManifest.xml
 
 temp/
 .godot
+
+# HOD test artifacts — place files in test/hod-files/ but do not commit them
+test/hod-files/*.hod

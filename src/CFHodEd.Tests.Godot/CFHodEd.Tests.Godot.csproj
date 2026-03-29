@@ -25,11 +25,6 @@
     <None Remove=".godot/**" />
   </ItemGroup>
 
-  <!-- Copy the HOD test fixture for integration tests -->
-  <ItemGroup>
-    <Content Include="..\..\test\meg_starjumper.hod">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>TestData\meg_starjumper.hod</Link>
-    </Content>
-  </ItemGroup>
+  <!-- HOD test files are NOT copied — they are resolved at runtime from test/hod-files/.
+       See TestFixtures.cs for the path-resolution logic. -->
 </Project>
