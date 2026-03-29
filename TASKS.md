@@ -1,18 +1,24 @@
-# CFHodEd Cross-Platform Port
+# CFHodEd — Godot 4 Editor
 
 ## Complete ✅
-- Phase 1-3: All 9 libraries ported
-- Phase 4: Avalonia UI with MVVM bindings
-- HOD mesh loading (HVMD/STAT/MULT/BMSH)
-- DTRM joint hierarchy parsing (fixed byte vs int32 bug)
-- Solid shading with flat lighting, backface culling, depth sorting
+- All core libraries ported from VB.NET to C#
+- Godot 4 project with C# scripting (`src/CFHodEd.Godot/`)
+- HOD file reading and writing
+- Joint/skeleton hierarchy (DTRM) parsing (fixed byte vs int32 bug)
+- HODLoader: HOD → Godot ArrayMesh + Skeleton3D with LH→RH coordinate conversion
+- Hierarchy panel: Tree control populated from Joints/Meshes/Materials/Markers/Effects
+- Properties panel: Joint transforms, Material shader/textures, Team/Stripe colors
+- Orbit/pan/zoom camera controller (CameraController.cs)
+- Render mode switching: Wireframe / Solid / Textured via toolbar
+- File dialogs: Open / Save / Save As
+- DXT1/3/5 and raw RGBA texture decompression → Godot ImageTexture
 
 ## Remaining
-- [ ] OBJ import/export
-- [ ] Settings dialog
-- [ ] Texture/material rendering
+- [ ] OBJ import/export (GMWavObjT library exists; wire up to File menu)
+- [ ] Animation playback (HW2MAD library is stubbed — see `src/HW2MAD/MADFormat.cs`)
+- [ ] Live viewport update when joint transforms are edited in properties panel
 
 ## Run
-```bash
-dotnet run --project src/CFHodEd.UI
-```
+
+Open `src/CFHodEd.Godot/` in the Godot 4 editor and press Play.
+

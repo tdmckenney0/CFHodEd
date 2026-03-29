@@ -1,115 +1,106 @@
 # Rendering Pipeline
 
-## Current Renderer: Software Rasterizer
+## Renderer: Godot 4 GPU
 
-The viewport currently uses a **CPU-based software rasterizer** written in `src/CFHodEd.UI/OpenGLViewport.cs`. It renders into an Avalonia `WriteableBitmap` which is then displayed as an image control inside the Avalonia window.
+The viewport uses **Godot 4's built-in Forward Plus renderer** running inside a `SubViewport` node. Geometry is uploaded to the GPU as `ArrayMesh` surfaces; lighting, materials, and draw calls are all managed by Godot. There is no software rasterizer.
 
-This was chosen for **cross-platform compatibility** — Avalonia's OpenGL interop has platform-specific complexity, and a software renderer works identically on Windows, Linux, and macOS.
+## Coordinate System Conversion
 
-`OpenGLRenderDevice` (in `src/CFHodEd.Rendering/`) is a complete OpenGL 3.3 backend but is **not yet wired to the viewport**. Connecting it is the intended next step for hardware-accelerated rendering.
+HOD/DirectX uses **left-handed** coordinates (camera looks toward +Z, Y is up).
+Godot uses **right-handed** coordinates (camera looks toward −Z, Y is up).
 
-## Render Pipeline Steps
+`HODLoader.cs` performs the conversion on all geometry before uploading to Godot:
 
-Each frame, `OpenGLViewport.RenderToBuffer()` executes in order:
+| HOD data | Conversion | Godot data |
+|----------|-----------|------------|
+| Vertex position `(x, y, z)` | Negate Z | `(x, y, −z)` |
+| Vertex normal `(nx, ny, nz)` | Negate Z | `(nx, ny, −nz)` |
+| Triangle indices `[i0, i1, i2]` | Swap i1 ↔ i2 | `[i0, i2, i1]` |
+| Joint Euler rotation `(rx, ry, rz)` | Negate Z component | `Basis.FromEuler(rx, ry, −rz)` |
+| Joint position | Same as vertex | Negate Z |
+
+The winding swap is necessary because negating Z mirrors the geometry; flipping two indices restores the outward-facing normal direction.
+
+## Mesh Construction (HODLoader)
+
+For each `MeshLOD` (LOD 0 is used), `BuildMesh()` fills a Godot `ArrayMesh`:
 
 ```
-1. Clear backbuffer        → fill pixels with clear color (30, 30, 35)
-2. Draw grid               → 20×20 world-space grid lines (60, 60, 70)
-3. Draw axes               → origin markers: Red=X, Green=Y, Blue=Z
-4. Collect all triangles   → iterate HOD meshes, transform to view space,
-                             compute average depth per triangle
-5. Sort back-to-front      → painter's algorithm (depth sort)
-6. Rasterize triangles     → per-triangle: cull → shade → draw pixels
+Mesh.ARRAY_VERTEX  ← HODVertex.Position  (Z negated)
+Mesh.ARRAY_NORMAL  ← HODVertex.Normal    (Z negated)
+Mesh.ARRAY_TEX_UV  ← HODVertex.TexCoords (unchanged)
+Mesh.ARRAY_INDEX   ← MeshLOD.Indices     (winding flipped)
 ```
+
+Each surface is added with `ArrayMesh.AddSurfaceFromArrays()` and a `StandardMaterial3D` is set on the `MeshInstance3D`.
+
+## Materials
+
+HOD materials map to Godot `StandardMaterial3D`:
+
+| HOD parameter | Godot property |
+|---------------|---------------|
+| `ShaderParameters.Diffuse` texture | `AlbedoTexture` |
+| `ShaderParameters.Normal` texture | `NormalTexture` (NormalEnabled = true) |
+| `ShaderParameters.Glow` texture | `EmissionTexture` (EmissionEnabled = true) |
+
+Textures are decompressed by `Texture.GetRGBAData()` (DXT1/3/5 or raw RGBA) then uploaded as `Image.Format.Rgba8` via `ImageTexture.CreateFromImage()`.
 
 ## Render Modes
 
-Three modes are toggled from the toolbar or View menu:
+Switched from the toolbar in `Main.cs`:
 
-### Wireframe
-Draws triangle edges only using Bresenham's line algorithm. No face fill. Good for inspecting topology.
+| Mode | Implementation |
+|------|---------------|
+| **Wireframe** | `SubViewport.DebugDraw = Viewport.DebugDrawEnum.Wireframe` |
+| **Solid** | DebugDraw disabled; `AlbedoColor = grey`, texture hidden |
+| **Textured** | DebugDraw disabled; `AlbedoColor = white`, full material active |
 
-### Solid
-Flat shading: each triangle gets a single color computed from the dot product of its face normal and the camera direction vector (diffuse + ambient). Backface culling is applied. Good for inspecting geometry without texture noise.
+## Skeleton
 
-### Textured
-Fills triangles with samples from the diffuse texture using **perspective-correct barycentric UV interpolation**. Falls back to solid shading if no texture is available for a material. Backface culling is applied.
+Joint hierarchy becomes a Godot `Skeleton3D` node (sibling of the `MeshInstance3D` nodes under `HodModelRoot`). Each joint maps to one bone:
+
+- `Skeleton3D.AddBone(joint.Name)`
+- `SetBoneParent(boneIdx, parentIdx)` — DFS traversal ensures parent is always added first
+- `SetBoneRest(boneIdx, Transform3D)` — rest pose from converted position + rotation + scale
+
+`MeshInstance3D.Skeleton` is set to the `Skeleton3D`'s node path, associating the mesh with the rig.
 
 ## Camera
 
-The camera is a **spherical orbit** (trackball-style) centered on a target point.
+`CameraController` (extends `Camera3D`) uses spherical orbit coordinates:
 
-| Control | Action |
-|---------|--------|
-| Left mouse button + drag | Rotate (yaw + pitch) |
-| Middle or right mouse button + drag | Pan (translate target) |
-| Mouse scroll wheel | Zoom (adjust orbit radius) |
-| R key | Reset camera to default (pos: 0,2,5; target: origin) |
+| Field | Meaning |
+|-------|---------|
+| `_distance` | Orbit radius from target |
+| `_yaw` | Horizontal rotation angle (radians) |
+| `_pitch` | Vertical rotation angle (radians, clamped ±1.5) |
+| `_target` | World-space point being orbited |
 
-Camera parameters used in matrix construction:
-- **Yaw / Pitch**: Euler angles
-- **Distance**: orbit radius from target
-- **View matrix**: `Matrix.LookAtLH(eye, target, up)`
-- **Projection matrix**: `Matrix.PerspectiveFovLH(45°, aspect, 0.1f, 1000f)`
+Each frame after input: `Position = target + spherical_offset(distance, yaw, pitch)`, then `LookAt(target)`.
 
-`FocusOnModel()` computes the bounding box of all mesh vertices and positions the camera to fit the whole model in view.
+| Input | Action |
+|-------|--------|
+| Left drag | Orbit (yaw / pitch) |
+| Middle / Right drag | Pan (translate target) |
+| Scroll wheel | Zoom (scale distance) |
+| R | Reset to default |
 
-## Rasterization Details
+`FocusOnBounds(Aabb)` sets target to the bounding box center and scales distance to fit.
 
-- **Depth buffer**: None. Triangles are sorted by average view-space Z (painter's algorithm). This means overlapping triangles can have artifacts, but it is sufficient for the current use case.
-- **Backface culling**: Cross product of edge vectors compared to camera direction. Triangles facing away are skipped in Solid and Textured modes.
-- **UV interpolation**: Barycentric coordinates with perspective correction (`w` divide).
-- **Lighting model**: Single directional light aligned with the camera direction. `diffuse = max(dot(normal, lightDir), 0)`. Ambient term prevents fully black back-lit surfaces.
+## Team Color Shader (Future Work)
 
-## Shader System (For Future GPU Renderer)
+Homeworld 2 uses a multi-texture masking scheme for per-player colors:
 
-The GLSL shaders in `src/CFHodEd.Rendering/Shaders/` are for the `OpenGLRenderDevice` GPU path that is not yet active. They are compiled as **embedded resources** in the assembly.
+- **Diffuse** texture: base color
+- **Team mask** (R channel): blends base toward the player's team color
+- **Stripe mask** (G channel): blends base toward the stripe color
+- **Glow** (B channel): drives specular weight and self-illumination
 
-| File | Type | Purpose |
-|------|------|---------|
-| `standard.vert` | Vertex | Transforms position, normal, UV; outputs WorldPos, ViewDir |
-| `ship.frag` | Fragment | Full Homeworld 2 ship shader: team color, stripe, glow, specular |
-| `matte.frag` | Fragment | Simple diffuse-only, ambient lighting |
-| `background.frag` | Fragment | Unlit skybox / background surface |
-| `thruster.frag` | Fragment | Additive engine exhaust glow |
-
-### ship.frag: Team Color System
-
-Homeworld 2 uses a multi-texture color masking scheme for per-player coloring:
-
-- **Diffuse texture**: Base color map
-- **Team color mask** (R channel): Blends base color with the player's team color
-- **Stripe color mask** (G channel): Blends with the player's stripe color
-- **Glow texture** (B channel): Controls specular highlight weight and self-illumination
-
-The formula darkens/lightens the base texture toward the selected team or stripe color, allowing a single model to represent any player's color scheme.
-
-### Uniforms (standard.vert)
-
-```glsl
-uniform mat4 uWorld;
-uniform mat4 uView;
-uniform mat4 uProjection;
-```
-
-Normal matrix is derived from the inverse-transpose of the world matrix inside the shader.
-
-### Uniforms (ship.frag)
-
-```glsl
-uniform sampler2D uDiffuse;
-uniform sampler2D uGlow;
-uniform sampler2D uTeamColor;
-uniform vec4 uTeamColorValue;
-uniform vec4 uStripeColorValue;
-uniform vec3 uLightDir[8];
-uniform vec4 uLightColor[8];
-uniform int uLightCount;
-```
+This is not yet implemented in the Godot material. `StandardMaterial3D` currently uses the diffuse texture directly. A custom `ShaderMaterial` using Godot's shader language will be needed to replicate the full HW2 look.
 
 ## Adding a New Render Mode
 
-1. Add a value to the `RenderMode` enum in `OpenGLViewport.cs`
-2. Add a case to the triangle rasterization switch in `DrawMeshes()`
-3. Add a toolbar button or menu item in `MainWindow.axaml`
-4. Bind the button to a command in `MainWindowViewModel` that sets `OpenGLViewport.CurrentRenderMode`
+1. Add a toolbar button in `Main.tscn` with a unique name
+2. In `Main.cs._Ready()`, wire its `Pressed` signal to a handler
+3. In the handler, set `_viewport.DebugDraw` and call `SetAllMaterials()` as needed

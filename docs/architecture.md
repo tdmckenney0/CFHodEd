@@ -1,34 +1,34 @@
 # Architecture
 
-SharpHodEditor is a multi-project .NET 8 solution. Each library has a single, well-defined responsibility. This document maps all projects, their roles, and how they connect.
+SharpHodEditor is a multi-project .NET 8 codebase. The editor UI runs inside Godot 4; all file-format and math work lives in standalone class libraries with no Godot dependency.
 
 ## Layered Overview
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  CFHodEd.UI                                                   │
-│  Avalonia desktop application                                 │
-│  • MainWindow (XAML layout + file I/O)                        │
-│  • OpenGLViewport (3D rendering control — software rasterizer)│
-│  • ViewModels/ (MVVM state management)                        │
+│  CFHodEd.Godot  (src/CFHodEd.Godot/)                         │
+│  Godot 4 desktop application                                  │
+│  • Main.cs          — toolbar, file dialogs, render modes     │
+│  • HODLoader.cs     — HOD → Godot ArrayMesh + Skeleton3D      │
+│  • HierarchyPanel.cs — Tree control population                │
+│  • PropertiesPanel.cs — joint/material/color property editor  │
+│  • CameraController.cs — orbit/pan/zoom Camera3D              │
 └───────────────────────────┬──────────────────────────────────┘
-                            │ uses
-           ┌────────────────┼─────────────────┐
-           ▼                ▼                 ▼
-      ┌─────────┐    ┌──────────┐     ┌──────────────┐
-      │ HW2HOD  │    │ HW2MAD   │     │CFHodEd.      │
-      │ (model) │    │(animation│     │Rendering     │
-      └────┬────┘    │ stubbed) │     │(IRenderDevice│
-           │         └──────────┘     │+ OpenGL impl)│
-           │ uses                     └──────┬───────┘
-      ┌────▼────┐                            │ uses
-      │ HW2IFF  │                     ┌──────▼───────┐
-      │(IFF I/O)│                     │CFHodEd.Math  │
-      └─────────┘                     │(Vector/Matrix│
-                                      │/Quaternion)  │
-                                      └──────────────┘
+                            │ references
+           ┌────────────────┼───────────────┐
+           ▼                ▼               ▼
+      ┌─────────┐    ┌──────────┐    ┌─────────────┐
+      │ HW2HOD  │    │ HW2MAD   │    │ CFHodEd.Math│
+      │ (model) │    │(animation│    │ (Vector /   │
+      └────┬────┘    │ stubbed) │    │  Matrix /   │
+           │         └──────────┘    │  Quaternion)│
+           │ uses                    └─────────────┘
+      ┌────▼────┐
+      │ HW2IFF  │
+      │(IFF I/O)│
+      └─────────┘
 
-Supporting utilities (no external deps except CFHodEd.Math):
+Supporting utilities:
   GenericMesh   — flexible mesh container
   GenericMath   — generic numeric operators (reflection-based)
   GMWavObjT     — Wavefront OBJ import/export (not yet wired up)
@@ -39,8 +39,7 @@ Supporting utilities (no external deps except CFHodEd.Math):
 
 | Project | Output | Role |
 |---------|--------|------|
-| `CFHodEd.UI` | WinExe | Desktop editor application (Avalonia) |
-| `CFHodEd.Rendering` | Library | Graphics abstraction + OpenGL backend |
+| `CFHodEd.Godot` | Godot app | Desktop editor (Godot 4 + C#) |
 | `CFHodEd.Math` | Library | DirectX-compatible math types |
 | `HW2HOD` | Library | Homeworld 2 model file format |
 | `HW2IFF` | Library | IFF binary container format |
@@ -53,29 +52,25 @@ Supporting utilities (no external deps except CFHodEd.Math):
 ## Dependency Graph
 
 ```
-CFHodEd.UI
-  ├── Avalonia 11.2.3
-  ├── Silk.NET.OpenGL 2.21.0
-  ├── CFHodEd.Math
-  ├── CFHodEd.Rendering
+CFHodEd.Godot
+  ├── Godot.NET.Sdk (GodotSharp API)
   ├── HW2HOD
   ├── HW2IFF
   ├── HW2MAD
+  ├── CFHodEd.Math
+  ├── GenericMesh
+  ├── GenericMath
   └── GMWavObjT
-
-CFHodEd.Rendering
-  ├── Silk.NET.OpenGL 2.21.0
-  ├── StbImageSharp 2.30.15
-  └── CFHodEd.Math
 
 HW2HOD
   ├── CFHodEd.Math
   ├── HW2IFF
-  └── HW2MAD
+  ├── HW2MAD
+  └── GenericMesh
 
 HW2IFF   — no project dependencies
 HW2MAD   — no project dependencies (stubbed)
-GenericMesh, GenericMath, GMWavObjT — no project dependencies
+GenericMesh, GenericMath, GMWavObjT — CFHodEd.Math / GenericMath only
 ```
 
 ## Key Classes
@@ -91,90 +86,91 @@ HOD                              ← root model container (HW2HOD/HOD.cs)
 │       └── List<MeshLOD>        ← level-of-detail array
 │           ├── List<HODVertex>  ← Position, Normal, Tangent, TexCoords
 │           └── List<ushort>     ← triangle indices
-├── List<Material>               ← shader + texture binding
+├── List<Material>               ← shader name + texture parameter bindings
 ├── List<Texture>                ← DXT or raw RGBA pixel data
-├── List<Marker>                 ← hardpoints/attachment points
+├── List<Marker>                 ← hardpoints / attachment points
 ├── EngineGlows/Burns/NavLights  ← visual effect descriptors
 └── TeamColor / StripeColor      ← ColorValue (RGBA float)
 ```
 
-### UI / ViewModel
+### Godot Scripts
 
 ```
-MainWindowViewModel              ← central editor state (ViewModels/)
-├── CurrentHod: HOD              ← loaded model
-├── CurrentFilePath: string
-├── HierarchyItems               ← ObservableCollection bound to tree view
-├── SelectedItem                 ← currently selected hierarchy node
-├── Transform properties         ← Position/Rotation/Scale XYZ (9 floats)
-├── Material properties          ← ShaderName, texture names
-└── TeamColor / StripeColor
+Main : Control                   ← root scene script (scripts/Main.cs)
+├── LoadHOD(path)                ← reads stream → HODLoader.BuildScene → viewport
+├── SaveHOD(path)                ← HOD.Write(stream)
+├── OnWireframe/Solid/Textured   ← sets viewport.DebugDraw, material mode
+└── wires HierarchyPanel ↔ PropertiesPanel via SelectionChanged event
 
-HierarchyItemViewModel           ← one node in the hierarchy tree
-├── Name, ItemType, Data         ← display + backing HOD object
-├── Children                     ← ObservableCollection (recursive)
-└── IsExpanded, IsSelected
+HODLoader (static)               ← scripts/HODLoader.cs
+├── BuildScene(hod) → Node3D     ← Skeleton3D + MeshInstance3D subtree
+├── BuildMesh(lod)  → ArrayMesh  ← vertex/normal/uv/index arrays with Z-flip
+├── BuildMaterial   → StandardMaterial3D  ← loads Godot ImageTexture from DXT data
+└── BuildSkeleton                ← recursive Joint → bone rest transforms
+
+HierarchyPanel : VBoxContainer   ← scripts/HierarchyPanel.cs
+├── Populate(hod)                ← fills Godot Tree control
+└── SelectionChanged event       ← fires with the selected HOD object
+
+PropertiesPanel : VBoxContainer  ← scripts/PropertiesPanel.cs
+└── ShowProperties(item, hod)    ← updates SpinBoxes / OptionButton / ColorPickers
+
+CameraController : Camera3D      ← scripts/CameraController.cs
+├── Orbit  (left drag)
+├── Pan    (middle/right drag)
+├── Zoom   (scroll wheel)
+└── FocusOnBounds(Aabb)
 ```
 
-### Rendering
+## Scene Graph (Main.tscn)
 
 ```
-IRenderDevice                    ← graphics abstraction interface (CFHodEd.Rendering)
-└── OpenGLRenderDevice           ← OpenGL 3.3+ implementation (complete, not wired yet)
-    ├── OpenGLVertexBuffer
-    ├── OpenGLIndexBuffer
-    ├── OpenGLTexture
-    └── OpenGLShaderProgram
-
-OpenGLViewport                   ← Avalonia control (CFHodEd.UI)
-    Uses WriteableBitmap for software rasterization.
-    Does NOT use IRenderDevice/OpenGLRenderDevice yet.
+Main (Control)
+└── VBoxContainer
+    ├── ToolBar (HBoxContainer)
+    │   └── Open / Save / SaveAs / [sep] / Wireframe / Solid / Textured
+    ├── WorkArea (HSplitContainer)
+    │   ├── HierarchyPanel (VBoxContainer) [%HierarchyPanel]
+    │   │   └── Tree [child of HierarchyPanel]
+    │   ├── ViewportContainer (SubViewportContainer)
+    │   │   └── SubViewport [%SubViewport]
+    │   │       ├── Camera3D [%Camera3D, CameraController script]
+    │   │       ├── DirectionalLight3D
+    │   │       ├── WorldEnvironment
+    │   │       └── HodModelRoot (Node3D) [%HodModelRoot]
+    │   └── PropertiesContainer (ScrollContainer)
+    │       └── PropertiesPanel (VBoxContainer) [%PropertiesPanel]
+    │           ├── TransformSection [%TransformSection]
+    │           │   └── SpinBox × 9 [%PosX … %ScaleZ]
+    │           ├── MaterialSection [%MaterialSection]
+    │           │   ├── OptionButton [%ShaderOption]
+    │           │   └── LineEdit × 3 [%DiffuseEdit, %GlowEdit, %NormalEdit]
+    │           └── TeamColorsSection [%TeamColorsSection]
+    │               └── ColorPickerButton × 2 [%TeamColorPicker, %StripeColorPicker]
+    └── StatusBar (Label) [%StatusBar]
 ```
 
-## MVVM Data Flow
+## Data Flow
 
 ```
 File Open
-    → MainWindow.axaml.cs reads stream
+    → Main.LoadHOD(path)
     → HOD.Read(stream) parses binary
-    → MainWindowViewModel.CurrentHod = hod
-    → HierarchyItemViewModel.BuildFrom(hod) populates tree
-    → Avalonia bindings update UI panels
+    → HODLoader.BuildScene(hod) → Node3D subtree
+    → subtree added to HodModelRoot in SubViewport
+    → HierarchyPanel.Populate(hod) fills Tree control
+    → CameraController.FocusOnBounds() frames model
 
 Selection Changed
-    → HierarchyItemViewModel.IsSelected = true
-    → MainWindowViewModel.SelectedItem changes
-    → Property panel bindings update (Position, Material, etc.)
+    → HierarchyPanel.SelectionChanged fires
+    → PropertiesPanel.ShowProperties(item, hod)
+    → SpinBoxes / OptionButton / ColorPickers populated
 
-Edit Property
-    → User edits field in property panel
-    → ViewModel property setter updates HOD data object
-    → OpenGLViewport re-renders on next frame tick
+Edit Joint Transform
+    → SpinBox.ValueChanged → OnTransformChanged()
+    → joint.Position/Rotation/Scale updated on HOD object
 
 Save
-    → MainWindow.axaml.cs calls HOD.Write(stream)
-    → IFFWriter serializes all chunks to binary
-```
-
-## UI Layout
-
-The main window is a 1280×720 three-panel layout:
-
-```
-┌─────────────────────────────────────────────────┐
-│ Menu bar  (File / Edit / View / Tools / Help)    │
-├─────────────────────────────────────────────────┤
-│ Toolbar   (Open / Save / Render mode buttons)    │
-├──────────┬──────────────────────────┬────────────┤
-│ Hierarchy│                          │ Properties │
-│ tree     │   3D Viewport            │ panel      │
-│          │   (OpenGLViewport)       │ (Transform │
-│ Joints   │                          │  Material  │
-│ Meshes   │                          │  Colors)   │
-│ Materials│                          │            │
-│ Markers  │                          │            │
-│ Effects  │                          │            │
-├──────────┴──────────────────────────┴────────────┤
-│ Status bar                                       │
-└─────────────────────────────────────────────────┘
+    → Main.SaveHOD(path)
+    → HOD.Write(stream) → IFFWriter serializes all chunks
 ```
