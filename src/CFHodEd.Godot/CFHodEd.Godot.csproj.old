@@ -1,0 +1,24 @@
+<Project Sdk="Godot.NET.Sdk/4.3.0">
+  <!--
+    SDK version must match the installed Godot editor version.
+    Godot will update this automatically when you open the project.
+    Update manually if needed: Godot.NET.Sdk/<your-godot-version>
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>CFHodEd.Godot</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../HW2HOD/HW2HOD.csproj" />
+    <ProjectReference Include="../HW2IFF/HW2IFF.csproj" />
+    <ProjectReference Include="../HW2MAD/HW2MAD.csproj" />
+    <ProjectReference Include="../GenericMesh/GenericMesh.csproj" />
+    <ProjectReference Include="../GenericMath/GenericMath.csproj" />
+    <ProjectReference Include="../CFHodEd.Math/CFHodEd.Math.csproj" />
+    <ProjectReference Include="../GMWavObjT/GMWavObjT.csproj" />
+  </ItemGroup>
+</Project>
