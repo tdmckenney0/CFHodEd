@@ -13,4 +13,11 @@
     <ProjectReference Include="..\HW2IFF\HW2IFF.csproj" />
     <ProjectReference Include="..\HW2MAD\HW2MAD.csproj" />
   </ItemGroup>
+
+  <!-- Allow the unit test project to access internal APIs -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>CFHodEd.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
 </Project>

@@ -47,7 +47,9 @@ Supporting utilities:
 | `GenericMesh` | Library | Generic mesh data structures |
 | `GenericMath` | Library | Generic math operators via reflection |
 | `GMWavObjT` | Library | Wavefront OBJ format support |
-| `TestHOD` | Exe | Console test app for HOD loading |
+| `TestHOD` | Exe | Console test app for HOD loading (legacy) |
+| `CFHodEd.Tests` | xUnit | Unit tests: Math, IFF, HOD, textures (`dotnet test`) |
+| `CFHodEd.Tests.Godot` | gdUnit4 | HOD model contracts, coordinate system rules (`dotnet test`) |
 
 ## Dependency Graph
 
@@ -71,6 +73,15 @@ HW2HOD
 HW2IFF   — no project dependencies
 HW2MAD   — no project dependencies (stubbed)
 GenericMesh, GenericMath, GMWavObjT — CFHodEd.Math / GenericMath only
+
+CFHodEd.Tests  (xUnit)
+  ├── CFHodEd.Math
+  ├── HW2IFF
+  ├── HW2HOD
+  └── GenericMesh
+
+CFHodEd.Tests.Godot  (gdUnit4, Microsoft.NET.Sdk)
+  └── HW2HOD
 ```
 
 ## Key Classes

@@ -13,6 +13,10 @@
 - File dialogs: Open / Save / Save As
 - DXT1/3/5 and raw RGBA texture decompression → Godot ImageTexture
 
+## Testing ✅
+- xUnit project `CFHodEd.Tests` — Math, IFF, HOD, texture decompression (`dotnet test src/CFHodEd.Tests`)
+- gdUnit4 project `CFHodEd.Tests.Godot` — HODLoader coordinate conversion, HierarchyPanel population
+
 ## Remaining
 - [ ] OBJ import/export (GMWavObjT library exists; wire up to File menu)
 - [ ] Animation playback (HW2MAD library is stubbed — see `src/HW2MAD/MADFormat.cs`)

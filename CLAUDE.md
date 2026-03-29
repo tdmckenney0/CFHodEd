@@ -71,6 +71,40 @@ Vertex format differs between BMSH version 1400 and 1401. Version 1401 adds UV2 
 - `using HodMaterial = HW2HOD.Material;`
 - Use `global::Godot.Mesh` for Godot's Mesh type where needed.
 
+## Testing
+
+### Unit tests — `CFHodEd.Tests` (xUnit, no Godot)
+
+Covers all Godot-independent code. Run with:
+```bash
+dotnet test src/CFHodEd.Tests
+```
+
+| Test file | What it covers |
+|-----------|----------------|
+| `Math/Vector3Tests.cs` | Vector3 operations, TransformCoordinate/Normal |
+| `Math/MatrixTests.cs` | Matrix multiply, transpose, invert, rotation |
+| `Math/QuaternionTests.cs` | Quaternion slerp, axis-angle, matrix round-trip |
+| `HW2IFF/IFFReaderWriterTests.cs` | IFF chunk round-trips (Default, Form, Normal types) |
+| `HW2HOD/HodReadTests.cs` | HOD parsing of `test/meg_starjumper.hod` |
+| `HW2HOD/TextureDecompressionTests.cs` | DXT1/3/5 and raw 8888 decompression |
+
+### Integration tests — `CFHodEd.Tests.Godot` (gdUnit4)
+
+Covers HOD data model contracts and coordinate conversion rules that underpin `HODLoader` and `HierarchyPanel`. Runs with plain `dotnet test` — no Godot editor or addon required.
+
+```bash
+dotnet test src/CFHodEd.Tests.Godot
+```
+
+Key tests:
+- `HODLoaderTests.cs` — Z-axis negation (LH→RH), winding-order swap, HOD data pre-conditions
+- `HierarchyPanelTests.cs` — joint hierarchy, mesh/material/marker list contracts
+
+### Agent rule: always test your changes
+
+**All agents modifying format libraries, math, or Godot scripts must run the relevant tests and verify they pass before marking work complete.** Run both suites: `dotnet test src/CFHodEd.Tests` and `dotnet test src/CFHodEd.Tests.Godot`.
+
 ## Code Conventions
 
 - **Godot scripts are `partial` classes** extending their node type (`Control`, `VBoxContainer`, `Camera3D`, etc.).

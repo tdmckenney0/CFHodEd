@@ -33,6 +33,17 @@ src/
 │       ├── HierarchyPanel.cs Tree control population
 │       ├── PropertiesPanel.cs Joint/material/color property editor
 │       └── CameraController.cs Orbit/pan/zoom camera
+├── CFHodEd.Tests/           xUnit unit tests (no Godot required)
+│   ├── CFHodEd.Tests.csproj
+│   ├── Math/                Vector3, Matrix, Quaternion tests
+│   ├── HW2IFF/              IFF reader/writer round-trip tests
+│   └── HW2HOD/              HOD parsing and texture decompression tests
+├── CFHodEd.Tests.Godot/     gdUnit4 E2E tests (requires Godot + addon)
+│   ├── CFHodEd.Tests.Godot.csproj
+│   ├── project.godot
+│   └── Tests/
+│       ├── HODLoaderTests.cs     LH→RH conversion, scene structure
+│       └── HierarchyPanelTests.cs Tree population
 ├── CFHodEd.Math/            Math types (Vector, Matrix, Quaternion…)
 ├── HW2HOD/                  HOD file format
 │   ├── HOD.cs               Top-level Read/Write
@@ -44,6 +55,30 @@ src/
 ├── GenericMath/             Generic math operators
 └── GMWavObjT/               Wavefront OBJ support
 ```
+
+## Running Tests
+
+### Unit tests (CFHodEd.Tests)
+
+No Godot required. Tests cover `CFHodEd.Math`, `HW2IFF`, `HW2HOD`, and texture decompression.
+
+```bash
+dotnet test src/CFHodEd.Tests
+```
+
+The real HOD fixture (`test/meg_starjumper.hod`) is automatically copied to the test output directory by the `.csproj`.
+
+### Integration tests (CFHodEd.Tests.Godot)
+
+Tests for HOD data model contracts and coordinate conversion rules that underpin `HODLoader` and `HierarchyPanel`. Uses gdUnit4 assertions but runs with plain `dotnet test` — no Godot editor required.
+
+```bash
+dotnet test src/CFHodEd.Tests.Godot
+```
+
+> **Agent rule:** After modifying any format library, math type, or Godot script, run
+> both test suites (`dotnet test src/CFHodEd.Tests` and `dotnet test src/CFHodEd.Tests.Godot`)
+> and verify all tests pass before declaring the task complete.
 
 ## How-To Guides
 
